@@ -2,6 +2,7 @@
     "files.exclude": {
         "**/.pio": true,
         "**/.vscode": true,
+        "**/.gitkeep": true,
         "**/*.log": true,
         "**/sdkconfig.*": true
     },

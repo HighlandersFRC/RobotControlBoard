@@ -36,10 +36,13 @@ or no controller packet arrives for 500 ms. USB power alone does not power the m
 
 ## Make changes
 
-All robot code is in [`src/main.cpp`](src/main.cpp). The settings at the top control
+The working joystick program is in [`src/main.cpp`](src/main.cpp). The settings at the top control
 pins, joystick deadband, speed limit, and motor direction. Set `MAX_DRIVE_POWER`
 to `0.5f` for half power, or change `INVERT_MOTOR_ONE` / `INVERT_MOTOR_TWO` if a motor
 turns the wrong way. Build and upload again after editing.
+
+The five kit folders under `src/` are placeholders for separate robot programs.
+`pesto_test` still builds only `src/main.cpp`.
 
 | Motor signal | GPIO |
 | --- | --- |
