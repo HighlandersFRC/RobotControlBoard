@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 set(SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_LIST_DIR}/config/esp32.defaults")
+# Build the sketch's dependencies and PlatformIO's helper. Arduino's bundled
+# updater also needs esp_https_ota, which its component does not declare.
+set(COMPONENTS src __pio_env esp_https_ota)
+# Avoid version discovery and rebuilds caused only by Git metadata changes.
+set(PROJECT_VER "1")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(RobotControlBoard)
 

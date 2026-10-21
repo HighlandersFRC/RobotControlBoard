@@ -16,13 +16,14 @@ This project is set up for the kit's **single-core ESP32-S0WD, with 4 MB flash**
 
 1. Plug the ESP32 into your computer with a USB data cable.
 2. Open the PlatformIO sidebar (alien-head icon).
-3. Expand **Project Tasks → pesto_test → General** and click **Build**.
-   The first build downloads dependencies and can take several minutes.
-4. After it says **SUCCESS**, click **Upload** in the same menu.
-5. Open **Monitor** for serial output at **115200 baud**.
+3. Expand **Project Tasks → pesto_test → General** and click **Upload**.
+   This builds the code and uploads it. The first build can take several minutes.
+4. After it says **SUCCESS**, open **Monitor** for serial output at **115200 baud**.
 
 If uploading gets stuck at `Connecting...`, hold **BOOT** until writing starts.
 There is one program in this repo, so the toolbar Upload button uses it too.
+For later edits, use Upload directly. Keep `.pio/` between builds; using **Clean**
+or deleting it forces the framework to compile again.
 
 ## Drive
 
