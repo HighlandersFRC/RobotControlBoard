@@ -1,7 +1,6 @@
 # PlatformIO build output and generated ESP-IDF configuration
 .pio/
 sdkconfig.*
-!sdkconfig.defaults
 
 # Editor caches and local launch settings
 .vscode/

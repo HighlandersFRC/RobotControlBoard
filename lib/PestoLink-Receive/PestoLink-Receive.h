@@ -1,5 +1,11 @@
 #pragma once
 
+// Alfredo Systems PestoLink-Receive, GPL-3.0 (see LICENSE).
+// Upstream: https://github.com/AlfredoSystems/PestoLink-Receive
+// Revision: bdef7bf367c1ea1a0f9c1649d55f2cb5259ad924
+// Local change: create the BLE task without pinning it to core 1, so it runs
+// on the single-core ESP32-S0WD; return false if task creation fails.
+
 #include "Arduino.h"
 #include <inttypes.h>
 #include <ArduinoBLE.h>
