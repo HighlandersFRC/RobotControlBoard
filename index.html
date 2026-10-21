@@ -1,281 +1,82 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>budx-controller</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{overflow:hidden;background:#080808;font-family:'JetBrains Mono','Fira Code','Courier New',monospace;}
-    #arm-container{width:100vw;height:100vh;position:relative;}
-    #arm-canvas{display:block;width:100%;height:100%;cursor:grab;}
-    #arm-canvas:active{cursor:grabbing;}
-
-    .panel{
-      position:absolute;background:rgba(6,6,6,0.92);
-      backdrop-filter:blur(16px);border:1px solid rgba(255,102,0,0.2);
-      border-radius:10px;color:#e8ddd0;
-      box-shadow:0 0 0 1px rgba(0,0,0,0.8),0 8px 32px rgba(0,0,0,0.7);z-index:10;
-    }
-    .panel-title{
-      font-size:10px;font-weight:700;color:#ff6600;letter-spacing:.18em;
-      text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px;
-    }
-    .panel-title::before{
-      content:'';width:6px;height:6px;background:#ff6600;border-radius:50%;
-      box-shadow:0 0 8px #ff6600;animation:pulse 2s ease-in-out infinite;flex-shrink:0;
-    }
-    @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 8px #ff6600;}50%{opacity:.2;box-shadow:0 0 2px #ff6600;}}
-
-    /* ── Joint panel ── */
-    #arm-ui{top:20px;left:20px;padding:16px 18px;min-width:215px;}
-    .joint-row{
-      display:flex;justify-content:space-between;align-items:center;
-      padding:5px 6px;border-radius:5px;border-bottom:1px solid rgba(255,102,0,0.07);
-      font-size:10px;transition:background .15s;
-    }
-    .joint-row:last-child{border-bottom:none;}
-    .joint-row.active-joint{background:rgba(255,102,0,0.1);}
-    .joint-row.active-joint .joint-name{color:#ff8833;}
-    .joint-name{color:#5a4a3a;letter-spacing:.08em;}
-    .joint-val{color:#ff8833;font-variant-numeric:tabular-nums;min-width:52px;text-align:right;}
-    .divider{margin:10px 0;border-top:1px solid rgba(255,102,0,0.1);padding-top:10px;}
-    .hint-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:10px;color:#5a4a3a;}
-    .hint-key{
-      background:rgba(255,102,0,0.08);border:1px solid rgba(255,102,0,0.2);
-      border-radius:4px;padding:1px 6px;font-size:9px;color:#ff6600;
-      letter-spacing:.06em;white-space:nowrap;
-    }
-
-    /* ── Animation panel ── */
-    #anim-panel{bottom:20px;left:20px;padding:14px 16px;min-width:215px;}
-    .slot-row{display:flex;gap:5px;margin-bottom:10px;}
-    .slot-btn{
-      flex:1;padding:5px 0;background:rgba(255,102,0,0.06);
-      border:1px solid rgba(255,102,0,0.2);border-radius:5px;
-      color:#5a4a3a;font-family:inherit;font-size:9px;letter-spacing:.06em;
-      cursor:pointer;transition:all .15s;text-align:center;
-    }
-    .slot-btn.has-data{color:#ff8833;border-color:rgba(255,102,0,0.4);}
-    .slot-btn.active-slot{background:rgba(255,102,0,0.15);border-color:#ff6600;color:#ff6600;}
-    .anim-btns{display:flex;gap:6px;margin-bottom:8px;}
-    .anim-btn{
-      flex:1;padding:7px 0;background:rgba(255,102,0,0.08);
-      border:1px solid rgba(255,102,0,0.25);border-radius:6px;
-      color:#ff8833;font-family:inherit;font-size:10px;letter-spacing:.08em;
-      cursor:pointer;text-transform:uppercase;transition:all .15s;
-    }
-    .anim-btn:hover{background:rgba(255,102,0,0.18);border-color:rgba(255,102,0,0.5);}
-    .anim-btn.active{background:rgba(255,102,0,0.3);border-color:#ff6600;color:#fff;box-shadow:0 0 10px rgba(255,102,0,.3);}
-    .anim-btn:disabled{opacity:.3;cursor:not-allowed;}
-    .anim-btn.danger{border-color:rgba(255,60,60,.3);color:#ff6060;}
-    .anim-btn.danger:hover{background:rgba(255,60,60,.15);}
-    .preset-row{display:flex;gap:5px;}
-    .preset-btn{
-      flex:1;padding:5px 0;background:rgba(255,102,0,0.05);
-      border:1px solid rgba(255,102,0,0.15);border-radius:5px;
-      color:#7a5a3a;font-family:inherit;font-size:9px;cursor:pointer;
-      transition:all .15s;text-align:center;letter-spacing:.05em;
-    }
-    .preset-btn:hover{background:rgba(255,102,0,0.15);color:#ff8833;border-color:rgba(255,102,0,.4);}
-
-    /* ── Controller panel ── */
-    #ctrl-panel{top:20px;right:20px;padding:14px 16px;min-width:225px;}
-    .ctrl-row{
-      display:flex;align-items:center;gap:10px;
-      padding:6px 0;border-bottom:1px solid rgba(255,102,0,0.07);font-size:10px;
-    }
-    .ctrl-row:last-of-type{border-bottom:none;}
-    .ctrl-dot{
-      width:7px;height:7px;border-radius:50%;background:#1e1e1e;
-      border:1px solid #2a2a2a;flex-shrink:0;transition:all .2s;
-    }
-    .ctrl-row.connected .ctrl-dot{background:#ff6600;box-shadow:0 0 6px #ff6600;}
-    .ctrl-info{display:flex;flex-direction:column;gap:2px;min-width:0;}
-    .ctrl-type{font-size:9px;font-weight:700;color:#ff6600;letter-spacing:.1em;text-transform:uppercase;}
-    .ctrl-label{font-size:9px;color:#5a4a3a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    .ctrl-btn{
-      margin-top:8px;width:100%;background:rgba(255,102,0,0.08);
-      border:1px solid rgba(255,102,0,0.25);border-radius:6px;
-      color:#ff8833;font-family:inherit;font-size:10px;letter-spacing:.1em;
-      padding:7px 0;cursor:pointer;text-transform:uppercase;transition:all .15s;
-    }
-    .ctrl-btn:hover{background:rgba(255,102,0,0.2);border-color:rgba(255,102,0,.5);}
-    .gp-active{margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,102,0,.1);font-size:9px;color:#5a4a3a;display:flex;justify-content:space-between;}
-    #ctrl-joint-name{color:#ff8833;font-weight:700;}
-    .gp-hints{margin-top:8px;border-top:1px solid rgba(255,102,0,.08);padding-top:8px;}
-    .gp-hint-row{display:flex;gap:8px;margin-bottom:3px;font-size:9px;color:#5a4a3a;align-items:center;}
-    .gp-key{background:rgba(255,102,0,.07);border:1px solid rgba(255,102,0,.18);border-radius:3px;padding:1px 5px;color:#cc5500;font-size:8px;white-space:nowrap;}
-
-    /* ── Hand Tracking panel ── */
-    #cam-panel{bottom:20px;right:20px;padding:14px 16px;width:260px;}
-
-    /* Preview: fixed size set by JS resize; video CSS-mirrored (selfie), canvas NOT mirrored */
-    #ht-preview{
-      position:relative;width:228px;height:128px;
-      border-radius:6px;overflow:hidden;
-      background:#0a0a0a;border:1px solid rgba(255,102,0,0.15);
-      margin-bottom:10px;user-select:none;
-    }
-    #ht-video{
-      position:absolute;top:0;left:0;width:100%;height:100%;
-      object-fit:cover;
-      transform:scaleX(-1); /* mirror so it feels like a selfie cam */
-      display:block;
-    }
-    /* Canvas draws in un-mirrored coordinate space, then we flip X ourselves in JS
-       so skeleton appears correctly over the mirrored video */
-    #ht-canvas{
-      position:absolute;top:0;left:0;width:100%;height:100%;
-      pointer-events:none;
-    }
-    #ht-status{
-      position:absolute;bottom:4px;left:6px;font-size:9px;
-      color:rgba(255,102,0,0.7);letter-spacing:.08em;pointer-events:none;
-      text-shadow:0 1px 4px rgba(0,0,0,0.9);
-    }
-    /* Drag-resize handle at bottom-right corner */
-    #ht-resize-handle{
-      position:absolute;bottom:0;right:0;
-      width:18px;height:18px;cursor:nwse-resize;z-index:6;
-      /* Visual triangle hint */
-      background:
-        linear-gradient(135deg, transparent 45%, rgba(255,102,0,0.5) 45%,
-                                rgba(255,102,0,0.5) 55%, transparent 55%),
-        linear-gradient(135deg, transparent 60%, rgba(255,102,0,0.35) 60%,
-                                rgba(255,102,0,0.35) 70%, transparent 70%),
-        linear-gradient(135deg, transparent 75%, rgba(255,102,0,0.2) 75%,
-                                rgba(255,102,0,0.2) 85%, transparent 85%);
-    }
-
-    .ht-controls{display:flex;gap:5px;margin-bottom:8px;}
-    .ht-mapping{font-size:9px;color:#5a4a3a;line-height:1.8;letter-spacing:.04em;}
-    .ht-mapping span{color:#7a5a3a;}
-
-    /* ── Fullscreen ── */
-    #fullscreen-btn{
-      position:absolute;bottom:20px;right:20px;width:36px;height:36px;
-      background:rgba(6,6,6,0.88);border:1px solid rgba(255,102,0,0.25);
-      border-radius:8px;color:#ff6600;font-size:18px;cursor:pointer;
-      display:flex;align-items:center;justify-content:center;
-      transition:all .15s;z-index:10;
-    }
-    #fullscreen-btn:hover{background:rgba(255,102,0,.15);border-color:rgba(255,102,0,.5);}
-
-    /* ── Joint label ── */
-    #joint-label{
-      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-      background:rgba(6,6,6,0.9);border:1px solid rgba(255,102,0,0.5);
-      border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;
-      color:#ff6600;letter-spacing:.16em;opacity:0;transition:opacity .12s;
-      pointer-events:none;box-shadow:0 0 24px rgba(255,102,0,.2);
-    }
-    #corner-badge{
-      position:absolute;bottom:62px;right:20px;font-size:9px;
-      letter-spacing:.22em;color:rgba(255,102,0,.15);text-transform:uppercase;user-select:none;
-    }
-    .ik-hint{font-size:9px;color:#5a4a3a;margin-top:4px;text-align:center;}
-  </style>
-</head>
-<body>
-<div id="arm-container">
-  <canvas id="arm-canvas"></canvas>
-
-  <!-- Joint panel -->
-  <div id="arm-ui" class="panel">
-    <div class="panel-title">Joint Control</div>
-    <div class="joint-row" id="row-Turntable"><span class="joint-name">TURNTABLE</span><span class="joint-val" id="jv-Turntable">0.0°</span></div>
-    <div class="joint-row" id="row-Upper-Arm"><span class="joint-name">UPPER ARM</span><span class="joint-val" id="jv-Upper-Arm">0.0°</span></div>
-    <div class="joint-row" id="row-Fore-Arm"><span class="joint-name">FORE ARM</span><span class="joint-val" id="jv-Fore-Arm">0.0°</span></div>
-    <div class="joint-row" id="row-Wrist"><span class="joint-name">WRIST</span><span class="joint-val" id="jv-Wrist">0.0°</span></div>
-    <div class="divider">
-      <div class="hint-row"><span class="hint-key">click part</span><span>select & drag</span></div>
-      <div class="hint-row"><span class="hint-key">drag bg</span><span>orbit camera</span></div>
-      <div class="hint-row"><span class="hint-key">scroll</span><span>zoom</span></div>
-      <div class="hint-row"><span class="hint-key">shift+click</span><span>IK target</span></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e7ecef" />
+    <meta name="description" content="Pose, record, and control the BUDX robot arm." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>BUDX — Arm workbench</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <a class="brand" href="./" aria-label="BUDX workbench home">
+          <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M7 29h22M11 29v-7l7-8 7 5v10M18 14V7h9"/><circle cx="18" cy="14" r="3"/><circle cx="25" cy="19" r="3"/></svg>
+          <span>BUDX<span class="brand-subtitle">Arm workbench</span></span>
+        </a>
+        <span class="session-label">Robot arm controller</span>
+        <div class="header-actions">
+          <span class="status-pill" id="model-status" role="status">Loading model…</span>
+          <button id="home-arm" class="button" title="Return every joint to zero">Home arm</button>
+          <button id="stop-motion" class="button stop-button" title="Stop playback and all control inputs">Stop motion <kbd>Esc</kbd></button>
+        </div>
+      </header>
+      <main class="workspace">
+        <aside class="joint-sidebar" aria-label="Arm controls">
+          <section class="control-section">
+            <div class="section-heading"><h1>Joint position</h1><span class="subtle">Degrees</span></div>
+            <p class="section-description">Choose a joint, then drag its slider or the part.</p>
+            <div id="joint-controls"></div>
+            <p class="keyboard-hint"><kbd>1</kbd>–<kbd>4</kbd> select <span><kbd>←</kbd> <kbd>→</kbd> move</span></p>
+          </section>
+          <section class="control-section motion-section" aria-labelledby="motion-heading">
+            <div class="section-heading"><h2 id="motion-heading">Motion library</h2><span id="motion-state" class="subtle">Idle</span></div>
+            <p class="section-description">Record a movement. Keep it for the next session.</p>
+            <div class="slot-picker" role="group" aria-label="Recording slot">
+              <button data-slot="0" aria-pressed="true">Slot 1<span>Empty</span></button>
+              <button data-slot="1" aria-pressed="false">Slot 2<span>Empty</span></button>
+              <button data-slot="2" aria-pressed="false">Slot 3<span>Empty</span></button>
+            </div>
+            <div class="transport"><button id="record" class="button record-button"><span class="record-dot" aria-hidden="true"></span><span id="record-label">Record</span></button><button id="play" class="button primary" disabled>Play</button></div>
+            <div class="motion-progress"><progress id="motion-progress" max="1" value="0" aria-label="Motion progress"></progress><span id="motion-time">0:00</span></div>
+            <div class="playback-options"><label><input type="checkbox" id="loop" checked /> Loop</label><label>Speed <select id="speed" aria-label="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label></div>
+            <div class="preset-heading">Try a movement</div>
+            <div class="presets"><button class="button" data-preset="Wave">Wave</button><button class="button" data-preset="Sweep">Sweep</button><button class="button" data-preset="Salute">Salute</button></div>
+          </section>
+          <div class="sidebar-note">Local recordings<br /><span>Saved in this browser on this device.</span></div>
+        </aside>
+        <section id="viewport" class="viewport" aria-label="Interactive 3D robot arm">
+          <canvas id="arm-canvas" tabindex="0" aria-label="Robot arm. Drag a part to move it, drag the background to orbit, or scroll to zoom."></canvas>
+          <div class="viewport-toolbar">
+            <div class="view-picker" role="group" aria-label="Camera view"><button data-view="perspective" aria-pressed="true">Perspective</button><button data-view="front" aria-pressed="false">Front</button><button data-view="top" aria-pressed="false">Top</button></div>
+            <div class="view-actions"><button id="fit-view" class="button" title="Fit arm in view (F)">Fit view</button><button id="fullscreen" class="button icon-button" aria-label="Enter fullscreen" title="Fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div>
+          </div>
+          <div class="viewport-caption"><span class="viewport-title">BUDX / 4-axis arm</span><span id="selected-joint">Turntable selected</span></div>
+          <div id="load-message" class="load-message" role="status"><span class="loading-mark"></span><strong>Assembling your workspace</strong><span id="load-detail">Loading four model parts…</span><button id="retry-load" class="button" hidden>Try again</button></div>
+          <div id="joint-tooltip" class="joint-tooltip" hidden></div>
+          <div class="viewport-bottom"><span>Drag to orbit <span class="hint-separator">/</span> Scroll to zoom <span class="hint-separator">/</span> Shift + click to reach</span><label><input id="show-grid" type="checkbox" checked /> Grid</label></div>
+        </section>
+        <aside class="input-sidebar" aria-label="Input devices">
+          <section class="control-section">
+            <div class="section-heading"><h2>Connections</h2><span class="connection-count" id="connection-count">0 active</span></div>
+            <div class="device"><div class="device-heading"><span class="device-icon" aria-hidden="true">⌘</span><strong>Gamepad</strong><span class="device-dot" id="gamepad-dot"></span></div><p id="gamepad-status">Plug in a controller and press a button.</p></div>
+            <details class="device-help"><summary>Gamepad controls</summary><dl><dt>Left stick</dt><dd>Orbit</dd><dt>Right stick X / Y</dt><dd>Move / zoom</dd><dt>LB / RB</dt><dd>Choose joint</dd><dt>A / Y</dt><dd>Home / fit</dd><dt>X / Start</dt><dd>Play / record</dd><dt>D-pad ↑ ↓ ←</dt><dd>Presets</dd></dl></details>
+            <div class="device serial-device"><div class="device-heading"><span class="device-icon" aria-hidden="true">↔</span><strong>Arduino</strong><span class="device-dot" id="serial-dot"></span></div><p id="serial-status">USB serial · 115200 baud</p><button id="connect-serial" class="button full-width">Connect Arduino</button></div>
+          </section>
+          <section class="control-section camera-section">
+            <div class="section-heading"><h2>Hand tracking</h2><span id="camera-state" class="subtle">Off</span></div>
+            <div class="camera-preview" id="camera-preview"><video id="camera-video" autoplay muted playsinline></video><canvas id="camera-overlay" aria-hidden="true"></canvas><div class="camera-placeholder" id="camera-placeholder"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="9" width="17" height="15" rx="3"/><path d="m21 14 7-4v13l-7-4M10 5h5"/></svg><span>Your camera stays local.</span></div><span id="tracking-status" class="tracking-status">Camera off</span></div>
+            <button id="toggle-camera" class="button full-width">Enable camera</button>
+            <label class="check-row"><input id="hand-control" type="checkbox" disabled /> Move arm with hand</label>
+            <div class="camera-options"><label><input id="smoothing" type="checkbox" checked /> Smooth motion</label><label><input id="face-blur" type="checkbox" /> Blur face</label></div>
+            <details class="device-help"><summary>How your hand moves the arm</summary><dl><dt>Palm left / right</dt><dd>Turntable</dd><dt>Palm up / down</dt><dd>Shoulder</dd><dt>Wrist tilt</dt><dd>Elbow</dd><dt>Index curl</dt><dd>Wrist</dd></dl></details>
+          </section>
+          <div class="input-note"><span class="input-note-dot"></span><div><strong id="input-source">Manual control</strong><p id="input-note">Sliders, keyboard, and model dragging.</p></div></div>
+        </aside>
+      </main>
+      <footer class="app-footer"><span id="activity" role="status">Loading arm…</span><span id="tool-position">Tool position —</span><span class="footer-brand">BUDX controller</span></footer>
     </div>
-  </div>
-
-  <!-- Animation panel -->
-  <div id="anim-panel" class="panel">
-    <div class="panel-title">Animation</div>
-    <div class="slot-row">
-      <button class="slot-btn" id="slot-0" onclick="setActiveSlot(0)">○ Slot 1</button>
-      <button class="slot-btn" id="slot-1" onclick="setActiveSlot(1)">○ Slot 2</button>
-      <button class="slot-btn" id="slot-2" onclick="setActiveSlot(2)">○ Slot 3</button>
-    </div>
-    <div class="anim-btns">
-      <button class="anim-btn" id="anim-record" onclick="animRecord()">⏺ Record</button>
-      <button class="anim-btn" id="anim-play"   onclick="animPlay()"  disabled>▶ Play</button>
-      <button class="anim-btn danger"            onclick="animReset()">↺ Reset</button>
-    </div>
-    <div class="preset-row">
-      <button class="preset-btn" onclick="playPreset('Wave')">Wave</button>
-      <button class="preset-btn" onclick="playPreset('Sweep')">Sweep</button>
-      <button class="preset-btn" onclick="playPreset('Salute')">Salute</button>
-    </div>
-    <div class="ik-hint">shift+click ground → IK target</div>
-  </div>
-
-  <!-- Controller panel -->
-  <div id="ctrl-panel" class="panel">
-    <div class="panel-title">Controllers</div>
-    <div class="ctrl-row" id="ctrl-xbox">
-      <div class="ctrl-dot"></div>
-      <div class="ctrl-info"><span class="ctrl-type">Xbox / Gamepad</span><span class="ctrl-label">No controller</span></div>
-    </div>
-    <div class="ctrl-row" id="ctrl-arduino">
-      <div class="ctrl-dot"></div>
-      <div class="ctrl-info"><span class="ctrl-type">Arduino Serial</span><span class="ctrl-label">Not connected</span></div>
-    </div>
-    <button class="ctrl-btn" id="arduino-btn" onclick="connectArduino()">⬡ Connect Arduino</button>
-    <div class="gp-active"><span>Active joint</span><span id="ctrl-joint-name">TURNTABLE</span></div>
-    <div class="gp-hints">
-      <div class="gp-hint-row"><span class="gp-key">L stick</span><span>orbit camera</span></div>
-      <div class="gp-hint-row"><span class="gp-key">R stick X</span><span>rotate joint</span></div>
-      <div class="gp-hint-row"><span class="gp-key">R stick Y</span><span>zoom</span></div>
-      <div class="gp-hint-row"><span class="gp-key">LB / RB</span><span>prev / next joint</span></div>
-      <div class="gp-hint-row"><span class="gp-key">X</span><span>play/stop anim</span></div>
-      <div class="gp-hint-row"><span class="gp-key">Start</span><span>record/stop</span></div>
-      <div class="gp-hint-row"><span class="gp-key">D-pad ↑↓←</span><span>wave/sweep/salute</span></div>
-      <div class="gp-hint-row"><span class="gp-key">A</span><span>reset joints</span></div>
-    </div>
-  </div>
-
-  <!-- Hand Tracking panel -->
-  <div id="cam-panel" class="panel">
-    <div class="panel-title">Hand Tracking</div>
-
-    <div id="ht-preview">
-      <video id="ht-video" autoplay muted playsinline></video>
-      <canvas id="ht-canvas"></canvas>
-      <div id="ht-status">CAMERA OFF</div>
-      <div id="ht-resize-handle" title="Drag to resize preview"></div>
-    </div>
-
-    <div class="ht-controls">
-      <button class="anim-btn" id="ht-toggle-btn" onclick="toggleHandTracking()" style="flex:1.5;">◎ Enable</button>
-      <button class="anim-btn" id="ht-smooth-btn" onclick="toggleHtSmoothing()">~ Smooth</button>
-      <button class="anim-btn" id="ht-blur-btn"   onclick="toggleFaceBlur()">⬡ Face</button>
-    </div>
-
-    <div class="ht-mapping">
-      <div>palm X <span>→ turntable</span></div>
-      <div>palm Y <span>→ upper arm</span></div>
-      <div>wrist tilt <span>→ fore arm</span></div>
-      <div>index curl <span>→ wrist</span></div>
-    </div>
-  </div>
-
-  <div id="joint-label"></div>
-  <button id="fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen">⊡</button>
-  <div id="corner-badge">budx · v0.7</div>
-</div>
-
-<!-- MediaPipe -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script type="module" src="/src/main.js"></script>
-</body>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>
