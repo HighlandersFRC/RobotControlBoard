@@ -3,7 +3,8 @@
 sdkconfig.*
 
 # Editor caches and local launch settings
-.vscode/
+.vscode/*
+!.vscode/settings.json
 *.code-workspace
 
 # Local build logs and operating-system files

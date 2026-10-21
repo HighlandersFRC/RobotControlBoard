@@ -1,0 +1,16 @@
+{
+    "files.exclude": {
+        "**/.pio": true,
+        "**/.vscode": true,
+        "**/*.log": true,
+        "**/sdkconfig.*": true
+    },
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.expand": false,
+    "explorer.fileNesting.patterns": {
+        "platformio.ini": "CMakeLists.txt, .gitignore",
+        "main.cpp": "CMakeLists.txt"
+    },
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "cmake.configureOnOpen": false
+}
