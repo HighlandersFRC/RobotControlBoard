@@ -1,0 +1,13 @@
+# PlatformIO build output and generated ESP-IDF configuration
+.pio/
+sdkconfig.*
+!sdkconfig.defaults
+
+# Editor caches and local launch settings
+.vscode/
+*.code-workspace
+
+# Local build logs and operating-system files
+*.log
+Thumbs.db
+.DS_Store
