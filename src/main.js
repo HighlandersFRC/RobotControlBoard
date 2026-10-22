@@ -1,4 +1,6 @@
 import './style.css';
+import './styles/liquid-glass.css';
+import { createLiquidGlass } from './liquid-glass.js';
 import { createRig } from './arm/rig.js';
 import { disposeObject, loadModels } from './arm/models.js';
 import { createViewport } from './viewport.js';
@@ -25,6 +27,7 @@ const ui = createUI({
   onView: name => viewport?.fit(name),
 });
 const reportError = message => ui.activity(message, true);
+const glass = createLiquidGlass();
 let storage;
 try { storage = window.localStorage; }
 catch { reportError('Browser storage is unavailable. Recordings will last for this session.'); }
@@ -217,6 +220,7 @@ function dispose() {
   cancelAnimationFrame(frame);
   events.abort();
   ui.dispose();
+  glass.dispose();
   void tracker.stop();
   void serial.disconnect();
   viewport?.dispose();

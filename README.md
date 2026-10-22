@@ -59,6 +59,10 @@ The original wrist pivot had no mesh. A small procedural tool flange now makes w
 
 ## Code and checks
 
+The interface uses a web adaptation of the [Liquid Glass Widgets design guide](https://github.com/sdegenaar/liquid_glass_widgets/blob/main/skills/liquid-glass-widgets/SKILL.md). That package targets Flutter; this app keeps its JavaScript/Three.js stack. Floating controls have a single frosted layer, with locally generated edge-refraction maps reserved for the header and camera toolbar. Controls within a glass panel use ordinary painted surfaces. There are no extra dependencies or downloaded visual assets.
+
+The header's transparency button switches to an opaque appearance and remembers the choice in this browser. System Reduce Transparency, increased contrast, and forced colors take priority. Reduce Motion disables refractive effects and transitions; small screens use blur without SVG refraction. `src/liquid-glass.js` generates edge maps on resize, updates the camera selector, and cleans up observers on disposal. `src/styles/liquid-glass.css` contains the appearance and fallback rules.
+
 - `src/arm/`: geometry calibration, model loading, and inverse kinematics.
 - `src/viewport.js`: rendering, camera, picking, and pointer interaction.
 - `src/motion.js`: recording, validation, persistence, and playback.
@@ -78,6 +82,7 @@ For the browser smoke check, start the dev server and run these commands in anot
 ```sh
 npx --yes --package @playwright/cli playwright-cli open http://localhost:5173 --headed
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/browser-check.js
+npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/glass-check.js
 ```
 
 Draco decoding is served locally from `public/draco/`; it does not depend on a third-party CDN to display the arm. See `public/draco/LICENSE` for the decoder license.

@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#e7ecef" />
+    <meta name="theme-color" content="#d7e7f2" />
     <meta name="description" content="Pose, record, and control the BUDX robot arm." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>BUDX — Arm workbench</title>
   </head>
   <body>
     <div id="app">
-      <header class="app-header">
+      <header class="app-header glass-surface" data-glass="premium">
         <a class="brand" href="./" aria-label="BUDX workbench home">
           <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M7 29h22M11 29v-7l7-8 7 5v10M18 14V7h9"/><circle cx="18" cy="14" r="3"/><circle cx="25" cy="19" r="3"/></svg>
           <span>BUDX<span class="brand-subtitle">Arm workbench</span></span>
@@ -18,12 +18,13 @@
         <span class="session-label">Robot arm controller</span>
         <div class="header-actions">
           <span class="status-pill" id="model-status" role="status">Loading model…</span>
+          <button id="glass-toggle" class="button icon-button" aria-label="Reduce transparency" aria-pressed="false" title="Reduce transparency"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="13" height="13" rx="4"/><rect x="8" y="8" width="13" height="13" rx="4"/><path d="m4 20 16-16"/></svg></button>
           <button id="home-arm" class="button" title="Return every joint to zero">Home arm</button>
           <button id="stop-motion" class="button stop-button" title="Stop playback and all control inputs">Stop motion <kbd>Esc</kbd></button>
         </div>
       </header>
       <main class="workspace">
-        <aside class="joint-sidebar" aria-label="Arm controls">
+        <aside class="joint-sidebar glass-surface" data-glass="standard" aria-label="Arm controls">
           <section class="control-section">
             <div class="section-heading"><h1>Joint position</h1><span class="subtle">Degrees</span></div>
             <p class="section-description">Choose a joint, then drag its slider or the part.</p>
@@ -49,15 +50,15 @@
         <section id="viewport" class="viewport" aria-label="Interactive 3D robot arm">
           <canvas id="arm-canvas" tabindex="0" aria-label="Robot arm. Drag a part to move it, drag the background to orbit, or scroll to zoom."></canvas>
           <div class="viewport-toolbar">
-            <div class="view-picker" role="group" aria-label="Camera view"><button data-view="perspective" aria-pressed="true">Perspective</button><button data-view="front" aria-pressed="false">Front</button><button data-view="top" aria-pressed="false">Top</button></div>
-            <div class="view-actions"><button id="fit-view" class="button" title="Fit arm in view (F)">Fit view</button><button id="fullscreen" class="button icon-button" aria-label="Enter fullscreen" title="Fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div>
+            <div class="view-picker glass-surface" data-glass="premium" role="group" aria-label="Camera view"><button data-view="perspective" aria-pressed="true">Perspective</button><button data-view="front" aria-pressed="false">Front</button><button data-view="top" aria-pressed="false">Top</button></div>
+            <div class="view-actions glass-surface" data-glass="premium"><button id="fit-view" class="button" title="Fit arm in view (F)">Fit view</button><button id="fullscreen" class="button icon-button" aria-label="Enter fullscreen" title="Fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div>
           </div>
           <div class="viewport-caption"><span class="viewport-title">BUDX / 4-axis arm</span><span id="selected-joint">Turntable selected</span></div>
           <div id="load-message" class="load-message" role="status"><span class="loading-mark"></span><strong>Assembling your workspace</strong><span id="load-detail">Loading four model parts…</span><button id="retry-load" class="button" hidden>Try again</button></div>
           <div id="joint-tooltip" class="joint-tooltip" hidden></div>
           <div class="viewport-bottom"><span>Drag to orbit <span class="hint-separator">/</span> Scroll to zoom <span class="hint-separator">/</span> Shift + click to reach</span><label><input id="show-grid" type="checkbox" checked /> Grid</label></div>
         </section>
-        <aside class="input-sidebar" aria-label="Input devices">
+        <aside class="input-sidebar glass-surface" data-glass="standard" aria-label="Input devices">
           <section class="control-section">
             <div class="section-heading"><h2>Connections</h2><span class="connection-count" id="connection-count">0 active</span></div>
             <div class="device"><div class="device-heading"><span class="device-icon" aria-hidden="true">⌘</span><strong>Gamepad</strong><span class="device-dot" id="gamepad-dot"></span></div><p id="gamepad-status">Plug in a controller and press a button.</p></div>

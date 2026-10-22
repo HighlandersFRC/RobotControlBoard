@@ -7,9 +7,9 @@ import { disposeObject } from './arm/models.js';
 export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewChange, onError }) {
   const container = canvas.parentElement;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#e7ecef');
-  scene.fog = new THREE.Fog('#e7ecef', 45, 110);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  scene.fog = new THREE.Fog('#dce8ef', 35, 95);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -31,7 +31,21 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   const fill = new THREE.DirectionalLight('#c7dff3', 1.9);
   fill.position.set(-12, 10, -8);
   scene.add(fill);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), new THREE.MeshStandardMaterial({ color: '#e0e7ec', roughness: .95 }));
+  // Fade the floor into the page backdrop rather than exposing a hard plane edge.
+  const floorSize = 64;
+  const floorPixels = new Uint8Array(floorSize * floorSize * 4);
+  for (let y = 0; y < floorSize; y++) {
+    for (let x = 0; x < floorSize; x++) {
+      const radius = Math.hypot(x / (floorSize - 1) * 2 - 1, y / (floorSize - 1) * 2 - 1);
+      const fade = 1 - THREE.MathUtils.smoothstep(radius, .15, .8);
+      const index = (y * floorSize + x) * 4;
+      floorPixels.set([fade * 255, fade * 255, fade * 255, 255], index);
+    }
+  }
+  const floorAlpha = new THREE.DataTexture(floorPixels, floorSize, floorSize);
+  floorAlpha.magFilter = floorAlpha.minFilter = THREE.LinearFilter;
+  floorAlpha.needsUpdate = true;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(180, 180), new THREE.MeshStandardMaterial({ color: '#dce8ef', roughness: .95, transparent: true, opacity: .7, alphaMap: floorAlpha }));
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -.015;
   ground.receiveShadow = true;
@@ -194,6 +208,6 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     },
     cancelDrag() { drag = null; controls.enabled = true; tooltip.hidden = true; },
     render() { controls.update(); renderer.render(scene, camera); },
-    dispose() { events.abort(); observer.disconnect(); controls.dispose(); disposeObject(scene); grid.geometry.dispose(); grid.material.dispose(); renderer.dispose(); key.shadow.dispose(); },
+    dispose() { events.abort(); observer.disconnect(); controls.dispose(); disposeObject(scene); floorAlpha.dispose(); grid.geometry.dispose(); grid.material.dispose(); renderer.dispose(); key.shadow.dispose(); },
   };
 }
