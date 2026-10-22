@@ -77,19 +77,19 @@
   --focus: #c7e1f4;
   --success: #a0cab7;
   --scene-ground: var(--arm-body);
-  --scene-grid-center: #98a7b7;
-  --scene-grid-lines: #7d8b9d;
+  --scene-grid-center: #172735;
+  --scene-grid-lines: #263b4d;
   --snow-color: #e3ebf3;
-  --arm-base: #7f8c96;
-  --arm-turntable: #939ea8;
-  --arm-body: #9fa9b2;
-  --arm-tool: #b5bfc7;
-  --arm-bearing: #73818d;
-  --arm-metalness: .82;
-  --arm-roughness: .48;
+  --arm-base: #61717f;
+  --arm-turntable: #748390;
+  --arm-body: #7e8b98;
+  --arm-tool: #94a1ad;
+  --arm-bearing: #5d6e7d;
+  --arm-metalness: .76;
+  --arm-roughness: .6;
 }
 body { background: radial-gradient(ellipse at 38% 12%, var(--page-glow), transparent 65%), var(--page); }
-:root[data-theme='light'] .viewport-bottom { color: #253543; }
+:root[data-theme='light'] .viewport-bottom { color: var(--ink); }
 :root[data-theme='light'] .scene-options .button { background: var(--chrome); }
 ::selection { color: var(--primary-ink); background: var(--primary); }
 .glass-surface { position: relative; isolation: isolate; background: var(--glass-tint); border: 1px solid var(--glass-border); border-radius: 14px; }

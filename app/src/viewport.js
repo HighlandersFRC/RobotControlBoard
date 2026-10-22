@@ -82,15 +82,15 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     const token = name => style.getPropertyValue(name).trim();
     const light = document.documentElement.dataset.theme === 'light';
     scene.fog.color.set(style.backgroundColor);
-    scene.environmentIntensity = light ? .7 : .4;
-    renderer.toneMappingExposure = light ? 1 : .95;
+    scene.environmentIntensity = light ? .5 : .4;
+    renderer.toneMappingExposure = light ? .84 : .95;
     ambient.groundColor.set(token('--scene-ground'));
-    key.intensity = light ? 2.5 : 2.8;
-    fill.intensity = 1.4;
+    key.intensity = light ? 2 : 2.8;
+    fill.intensity = light ? 1.1 : 1.4;
     ground.material.color.set(token('--scene-ground'));
-    ground.material.opacity = light ? .7 : .75;
-    ground.material.metalness = light ? .4 : 0;
-    ground.material.roughness = light ? .62 : .8;
+    ground.material.opacity = light ? .48 : .75;
+    ground.material.metalness = light ? .04 : 0;
+    ground.material.roughness = light ? .95 : .8;
     applyModelTheme(rig.root, style);
     const centerColor = new THREE.Color(token('--scene-grid-center'));
     const lineColor = new THREE.Color(token('--scene-grid-lines'));
@@ -100,7 +100,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
       for (let offset = 0; offset < 4; offset++) colors.setXYZ(index + offset, color.r, color.g, color.b);
     }
     colors.needsUpdate = true;
-    grid.material.opacity = .28;
+    grid.material.opacity = light ? .72 : .28;
     snow.setTheme(token('--snow-color'), .72);
     manipulator.setTheme(light);
     container.dataset.theme = light ? 'light' : 'dark';

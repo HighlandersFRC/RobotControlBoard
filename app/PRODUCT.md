@@ -29,7 +29,7 @@ The existing browser application supports direct model dragging, sliders, keyboa
 
 ## Brand Commitments
 
-The product name is BUDX. The owner requests the earlier deep charcoal palette as Dark mode and the brighter slate palette as Light mode, glass controls, no branded top header or decorative logo, collapsible sidebars, interactive 3D snow, and a more widely spaced ground grid. The arm changes finish with the mode: graphite in Dark mode and brushed silver / aluminum in Light mode. Light mode's ground shares the arm's color.
+The product name is BUDX. The owner requests the earlier deep charcoal palette as Dark mode and the brighter slate palette as Light mode, glass controls, no branded top header or decorative logo, collapsible sidebars, interactive 3D snow, and a more widely spaced ground grid. The arm changes finish with the mode: graphite in Dark mode and muted brushed silver / aluminum in Light mode. Light mode's ground shares the arm's color, with a matte finish, reduced glare, and clearly contrasting grid lines.
 
 ## Evidence on Hand
 
