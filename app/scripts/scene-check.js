@@ -1,0 +1,63 @@
+async page => {
+  const check = (condition, message) => { if (!condition) throw new Error(message); };
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(page.url());
+  await page.evaluate(() => {
+    for (const key of ['budx-panel-joints', 'budx-panel-inputs', 'budx-snow-enabled']) localStorage.removeItem(key);
+  });
+  await page.reload();
+  await page.locator('#viewport[data-ready="true"]').waitFor();
+  check(await page.locator('.app-header, .brand').count() === 0, 'The branded header must be removed.');
+  check(await page.locator('#joint-sidebar').isVisible(), 'Desktop opens with arm controls.');
+  check(!await page.locator('#input-sidebar').isVisible(), 'Secondary devices start collapsed.');
+  check(await page.locator('#joint-sidebar').evaluate(element => element.clientWidth) === 282, 'Desktop sidebar dimensions must stay unchanged.');
+  check(!await page.getByRole('group', { name: 'Recording slot' }).isVisible(), 'Secondary recording controls start tucked away.');
+  await page.getByText('Recording options', { exact: true }).click();
+  check(await page.getByRole('group', { name: 'Recording slot' }).isVisible(), 'Saved slots remain available.');
+  await page.getByText('Recording options', { exact: true }).click();
+  check(await page.locator('#viewport').getAttribute('data-grid-spacing') === '4', 'Grid cells must be four times wider.');
+  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Wrist', 30]]) {
+    await page.getByRole('spinbutton', { name: `${name} angle` }).fill(String(value));
+    await page.getByRole('spinbutton', { name: `${name} angle` }).press('Tab');
+  }
+  await page.mouse.move(900, 400);
+  await page.mouse.move(800, 480, { steps: 12 });
+  await page.waitForFunction(() => Number(document.getElementById('viewport').dataset.snowInteractions) > 0);
+  await page.mouse.move(1180, 650);
+  await page.screenshot({ path: 'output/playwright/scene-desktop.png' });
+  await page.locator('#toggle-inputs').click();
+  check(await page.locator('#input-sidebar').isVisible(), 'Devices can be expanded.');
+  check(!await page.locator('#camera-preview').isVisible() && !await page.locator('#hand-options').isVisible(), 'Inactive camera controls should stay out of the way.');
+  await page.screenshot({ path: 'output/playwright/scene-devices.png' });
+  await page.locator('#toggle-joints').click();
+  check(!await page.locator('#joint-sidebar').isVisible(), 'Arm controls can be collapsed independently.');
+  await page.locator('#toggle-inputs').click();
+  check(!await page.locator('#input-sidebar').isVisible(), 'Both sidebars can be collapsed.');
+  check(await page.locator('#stop-motion').isVisible() && await page.locator('#home-arm').isVisible(), 'Home and Stop stay available.');
+  await page.reload();
+  await page.locator('#viewport[data-ready="true"]').waitFor();
+  check(!await page.locator('#joint-sidebar').isVisible(), 'Panel preference survives reload.');
+  await page.screenshot({ path: 'output/playwright/scene-uncluttered.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await page.locator('#viewport[data-ready="true"]').waitFor();
+  check(Number(await page.locator('#viewport').getAttribute('data-snow-particles')) === 1500, 'Mobile snow must use the smaller dense particle budget.');
+  await page.locator('#toggle-joints').click();
+  check(await page.locator('#joint-sidebar').isVisible(), 'Mobile arm controls can be opened.');
+  await page.locator('#toggle-inputs').click();
+  check(!await page.locator('#joint-sidebar').isVisible() && await page.locator('#input-sidebar').isVisible(), 'Mobile panels make room for each other.');
+  await page.locator('#toggle-inputs').click();
+  check(await page.evaluate(() => document.documentElement.scrollWidth === innerWidth), 'Mobile must fit horizontally.');
+  await page.screenshot({ path: 'output/playwright/scene-mobile.png' });
+  await page.locator('#toggle-joints').focus();
+  await page.keyboard.press('Enter');
+  check(await page.locator('#joint-sidebar').isVisible(), 'Panel toggles must work from the keyboard.');
+  await page.locator('#toggle-joints').click();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.locator('#toggle-joints').click();
+  check(errors.length === 0, `Browser errors: ${errors.join('; ')}`);
+  return 'PASS: header removed, independent persistent panels, mobile disclosure and keyboard controls, larger grid, interactive WebGL snow, and no browser or shader errors.';
+}

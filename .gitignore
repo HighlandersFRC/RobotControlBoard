@@ -11,6 +11,11 @@ node_modules
 dist
 dist-ssr
 *.local
+.playwright-cli/
+output/
+app/.impeccable/config.local.json
+app/.impeccable/cache/
+app/.impeccable/*.cache.json
 
 # Editor directories and files
 .vscode/*
