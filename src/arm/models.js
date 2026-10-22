@@ -19,9 +19,7 @@ export async function loadModels(rig, onProgress) {
         const source = Array.isArray(object.material) ? object.material : [object.material];
         const materials = source.map(material => {
           const copy = material.clone();
-          copy.color.set(name === 'base' ? '#292c30' : name === 'turntable' ? '#303338' : '#36393d');
-          copy.roughness = .56;
-          copy.metalness = .18;
+          copy.userData.armFinish = name === 'base' ? 'base' : name === 'turntable' ? 'turntable' : 'body';
           return copy;
         });
         object.material = Array.isArray(object.material) ? materials : materials[0];
@@ -44,8 +42,10 @@ export async function loadModels(rig, onProgress) {
 function addWristTool(wrist) {
   // The repo has four CAD parts but no wrist tool. A small flange makes the
   // fourth axis visible; its bearing stays centered as the tool rolls.
-  const steel = new MeshStandardMaterial({ color: '#414448', metalness: .18, roughness: .56 });
-  const dark = new MeshStandardMaterial({ color: '#292c30', metalness: .18, roughness: .56 });
+  const steel = new MeshStandardMaterial();
+  const dark = new MeshStandardMaterial();
+  steel.userData.armFinish = 'tool';
+  dark.userData.armFinish = 'bearing';
   const bearing = new Mesh(new CylinderGeometry(.43, .43, .18, 32), dark);
   bearing.position.y = .09;
   const flange = new Mesh(new CylinderGeometry(.57, .57, .13, 32), steel);
@@ -54,6 +54,21 @@ function addWristTool(wrist) {
   tool.position.y = .43;
   wrist.add(bearing, flange, tool);
   wrist.traverse(object => { if (object.isMesh) object.castShadow = object.receiveShadow = true; });
+}
+
+export function applyModelTheme(root, style) {
+  const token = name => style.getPropertyValue(`--arm-${name}`).trim();
+  root.traverse(object => {
+    if (!object.isMesh) return;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) {
+      const finish = material.userData.armFinish;
+      if (!finish) continue;
+      material.color.set(token(finish));
+      material.metalness = Number(token('metalness'));
+      material.roughness = Number(token('roughness')) + (finish === 'base' || finish === 'bearing' ? .04 : 0);
+    }
+  });
 }
 
 export function disposeObject(root) {

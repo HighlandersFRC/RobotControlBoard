@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#11151c" />
+    <meta name="theme-color" content="#11151b" />
+    <script>try { document.documentElement.dataset.theme = localStorage.getItem('budx-theme') === 'light' ? 'light' : 'dark'; } catch { document.documentElement.dataset.theme = 'dark'; }</script>
     <meta name="description" content="Pose, record, and control the BUDX robot arm." />
     <link rel="icon" href="data:," />
     <title>BUDX</title>
@@ -45,7 +46,7 @@
           <div class="viewport-caption"><span id="selected-joint">Turntable selected</span></div>
           <div id="load-message" class="load-message" role="status"><span class="loading-mark"></span><strong>Loading arm</strong><span id="load-detail">Loading four model parts…</span><button id="retry-load" class="button" hidden>Try again</button></div>
           <div id="joint-tooltip" class="joint-tooltip" hidden></div>
-          <div class="viewport-bottom"><span>Drag to orbit · Shift + click to reach</span><div class="scene-options"><label title="Move the pointer through the scene to stir the snow"><input id="show-snow" type="checkbox" checked /> Snow</label><label><input id="show-grid" type="checkbox" checked /> Grid</label><button id="glass-toggle" class="button icon-button" aria-label="Reduce transparency" aria-pressed="false" title="Reduce transparency"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="13" height="13" rx="4"/><rect x="8" y="8" width="13" height="13" rx="4"/><path d="m4 20 16-16"/></svg></button></div></div>
+          <div class="viewport-bottom"><span>Drag to orbit · Shift + click to reach</span><div class="scene-options"><label title="Move the pointer through the scene to stir the snow"><input id="show-snow" type="checkbox" checked /> Snow</label><label><input id="show-grid" type="checkbox" checked /> Grid</label><button id="glass-toggle" class="button icon-button" aria-label="Reduce transparency" aria-pressed="false" title="Reduce transparency"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="13" height="13" rx="4"/><rect x="8" y="8" width="13" height="13" rx="4"/><path d="m4 20 16-16"/></svg></button><button id="theme-toggle" class="button icon-button" aria-label="Switch to light mode" aria-pressed="false" title="Switch to light mode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8M12 2v2m0 16v2M2 12h2m16 0h2"/></svg></button></div></div>
         </section>
         <aside id="input-sidebar" class="input-sidebar glass-surface" data-glass="premium" aria-label="Input devices">
           <section class="control-section">

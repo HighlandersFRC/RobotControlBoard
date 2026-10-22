@@ -72,6 +72,7 @@ async page => {
   // Separate pages isolate synthetic camera and failed asset loading from the
   // main workbench. No physical camera, serial device, or gamepad is requested.
   const cameraPage = await page.context().newPage();
+  await cameraPage.setViewportSize({ width: 1440, height: 900 });
   await cameraPage.bringToFront();
   cameraPage.on('pageerror', error => errors.push(error.message));
   await cameraPage.addInitScript(() => {

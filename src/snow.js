@@ -1,4 +1,4 @@
-import { Box3, BufferAttribute, BufferGeometry, DynamicDrawUsage, Plane, Points, Raycaster, ShaderMaterial, Vector2, Vector3, Vector4 } from 'three';
+import { Box3, BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Plane, Points, Raycaster, ShaderMaterial, Vector2, Vector3, Vector4 } from 'three';
 
 // World-space simulation is shared by the renderer and deterministic tests.
 export function createSnowField(count = 2600, random = Math.random) {
@@ -81,7 +81,7 @@ export function createSnow({ scene, camera, canvas, toggle, renderer, rig }) {
   geometry.setAttribute('phase', new BufferAttribute(field.phases, 1));
   const material = new ShaderMaterial({
     transparent: true, depthTest: true, depthWrite: false,
-    uniforms: { time: { value: 0 }, scale: { value: 1 }, clearArea: { value: new Vector4() } },
+    uniforms: { time: { value: 0 }, scale: { value: 1 }, clearArea: { value: new Vector4() }, color: { value: new Color('#e3ebf3') }, opacity: { value: .72 } },
     vertexShader: `
       attribute float size;
       attribute float phase;
@@ -101,6 +101,8 @@ export function createSnow({ scene, camera, canvas, toggle, renderer, rig }) {
         armFade = clearArea.z > 0.0 ? mix(0.22, 1.0, smoothstep(0.7, 1.35, length(offset))) : 1.0;
       }`,
     fragmentShader: `
+      uniform vec3 color;
+      uniform float opacity;
       varying float rotation;
       varying float distanceFade;
       varying float armFade;
@@ -110,9 +112,10 @@ export function createSnow({ scene, camera, canvas, toggle, renderer, rig }) {
         float angle = atan(point.y, point.x) + rotation;
         float branch = pow(abs(cos(angle * 3.0)), 12.0);
         float edge = 0.28 + branch * 0.58;
-        float alpha = (1.0 - smoothstep(edge - 0.12, edge, radius)) * 0.72 * distanceFade * armFade;
+        float alpha = (1.0 - smoothstep(edge - 0.12, edge, radius)) * opacity * distanceFade * armFade;
         if (alpha < 0.02) discard;
-        gl_FragColor = vec4(vec3(0.83, 0.88, 0.92), alpha);
+        gl_FragColor = vec4(color, alpha);
+        #include <colorspace_fragment>
       }`,
   });
   const particles = new Points(geometry, material);
@@ -193,6 +196,7 @@ export function createSnow({ scene, camera, canvas, toggle, renderer, rig }) {
   host.dataset.snowAvoidance = 'arm';
   sync();
   return {
+    setTheme(color, opacity) { material.uniforms.color.value.set(color); material.uniforms.opacity.value = opacity; },
     tick(delta) {
       if (reduced !== motion.matches) sync();
       if (!particles.visible || document.hidden) return;

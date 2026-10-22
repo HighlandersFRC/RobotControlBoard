@@ -61,13 +61,15 @@ The original wrist pivot had no mesh. A small procedural tool flange now makes w
 
 ## Code and checks
 
-The dark interface uses a web adaptation of the [Apple Liquid Glass skill](https://github.com/haider-nawaz/liquid-glass-skill). The reference targets native SwiftUI; this app keeps its JavaScript/Three.js stack. Clear graphite control panels float above the continuous scene and snow, with shared backdrop sampling and locally generated edge refraction. Controls inside a panel use ordinary painted surfaces. The model's framing accounts for the sidebars so it remains centered in the usable space. There are no extra dependencies or downloaded visual assets.
+The interface uses a web adaptation of the [Apple Liquid Glass skill](https://github.com/haider-nawaz/liquid-glass-skill). The reference targets native SwiftUI; this app keeps its JavaScript/Three.js stack. Clear control panels float above the continuous scene and snow, with shared backdrop sampling and locally generated edge refraction. Controls inside a panel use ordinary painted surfaces. The model's framing accounts for the sidebars so it remains centered in the usable space. There are no extra dependencies or downloaded visual assets.
 
 The bottom-right transparency button switches to an opaque appearance and remembers the choice in this browser. System Reduce Transparency, increased contrast, and forced colors take priority. Reduce Motion disables refractive effects and transitions; small screens use blur without SVG refraction. `src/liquid-glass.js` generates edge maps on resize, updates the camera selector, and cleans up observers on disposal. `src/styles/liquid-glass.css` contains the appearance and fallback rules.
 
 `src/fullscreen.js` expands the model viewer using native fullscreen, with an in-page fallback when embedded browsers reject or stall the native request. Both modes provide an exit button, Escape handling, focus containment, and restored joint controls on exit. `src/snow.js` simulates up to 2,600 world-space flakes (1,500 on initial mobile load) in the same WebGL scene as the arm. Flakes have perspective sizing, depth occlusion, tumble, and local pointer-driven gusts. Soft forces divert flakes around the moving arm links, and a feathered screen-space fade keeps the model readable from every camera angle. Move or click through the scene to stir them. Snow pauses when the tab is hidden or Reduce Motion is enabled.
 
-There is no branded header. Controls and Devices toggle independent sidebars and remember desktop preferences; mobile opens with the scene and shows one panel at a time. Home and Stop remain visible. Joint rows show a name, angle, and slider; recording slots and playback settings live under Recording options. The camera preview and hand controls appear only while tracking is active. Panel dimensions are unchanged. The model uses matte graphite with neutral lighting, and the ground grid uses four-unit cells (80 mm at the existing display scale).
+There is no branded header. Controls and Devices toggle independent sidebars and remember desktop preferences; mobile opens with the scene and shows one panel at a time. Home and Stop remain visible. Joint rows show a name, angle, and slider; recording slots and playback settings live under Recording options. The camera preview and hand controls appear only while tracking is active. Panel dimensions are unchanged. The model changes between graphite and brushed aluminum with neutral lighting, and the ground grid uses four-unit cells (80 mm at the existing display scale).
+
+The sun/moon button at the bottom right switches between the original deep charcoal Dark mode and the brighter slate Light mode. The arm changes from graphite to brushed aluminum, and Light mode’s ground shares the arm’s base color. The choice is saved locally and synchronized across open tabs. Palette tokens in `src/styles/liquid-glass.css` drive the controls, page, arm materials, WebGL floor, grid, fog, and snow; changing themes preserves the current pose. `src/theme.js` manages the toggle, storage fallback, and browser chrome color.
 
 `PRODUCT.md` records the confirmed personal robot-controller context. Impeccable's project design detector is enabled in `.impeccable/config.json`; machine-local consent stays ignored.
 
@@ -93,6 +95,7 @@ npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/b
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/glass-check.js
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/viewer-check.js
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/scene-check.js
+npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/theme-check.js
 ```
 
 Draco decoding is served locally from `public/draco/`; it does not depend on a third-party CDN to display the arm. See `public/draco/LICENSE` for the decoder license.

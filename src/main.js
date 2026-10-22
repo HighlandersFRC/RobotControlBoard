@@ -3,6 +3,7 @@ import './styles/liquid-glass.css';
 import { createLiquidGlass } from './liquid-glass.js';
 import { createFullscreen } from './fullscreen.js';
 import { createPanels } from './panels.js';
+import { createTheme } from './theme.js';
 import { createRig } from './arm/rig.js';
 import { disposeObject, loadModels } from './arm/models.js';
 import { createViewport } from './viewport.js';
@@ -32,6 +33,7 @@ const reportError = message => ui.activity(message, true);
 const glass = createLiquidGlass();
 const fullscreen = createFullscreen({ target: element('viewport'), button: element('fullscreen'), onExpand: () => ui.activity('Viewer expanded. Press Esc to return.') });
 const panels = createPanels({ onChange: () => viewport?.resize() });
+const theme = createTheme({ onChange: () => viewport?.setTheme() });
 let storage;
 try { storage = window.localStorage; }
 catch { reportError('Browser storage is unavailable. Recordings will last for this session.'); }
@@ -221,6 +223,7 @@ function dispose() {
   glass.dispose();
   fullscreen.dispose();
   panels.dispose();
+  theme.dispose();
   void tracker.stop();
   void serial.disconnect();
   viewport?.dispose();

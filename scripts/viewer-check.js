@@ -61,7 +61,10 @@ async page => {
     await blocked.getByRole('button', { name: 'Enter fullscreen', exact: true }).click();
     stage = 'blocked fullscreen fallback';
     await blocked.waitForFunction(() => document.querySelector('#viewport').dataset.fullscreen === 'expanded');
-    check(await blocked.evaluate(() => document.getElementById('viewport').getBoundingClientRect().width === innerWidth), 'Blocked native fullscreen must still expand the viewer.');
+    check(await blocked.evaluate(() => {
+      const box = document.getElementById('viewport').getBoundingClientRect();
+      return box.x === 0 && box.y === 0 && Math.abs(box.width - innerWidth) < 2 && Math.abs(box.height - innerHeight) < 2;
+    }), 'Blocked native fullscreen must still expand the viewer.');
     await blocked.keyboard.press('Escape');
     stage = 'Escape from fallback';
     await blocked.waitForFunction(() => document.querySelector('#viewport').dataset.fullscreen === 'off');
