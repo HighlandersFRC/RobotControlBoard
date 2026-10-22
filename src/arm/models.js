@@ -20,8 +20,8 @@ export async function loadModels(rig, onProgress) {
         const materials = source.map(material => {
           const copy = material.clone();
           copy.color.set(name === 'base' ? '#292c30' : name === 'turntable' ? '#303338' : '#36393d');
-          copy.roughness = .68;
-          copy.metalness = .12;
+          copy.roughness = .56;
+          copy.metalness = .18;
           return copy;
         });
         object.material = Array.isArray(object.material) ? materials : materials[0];
@@ -44,8 +44,8 @@ export async function loadModels(rig, onProgress) {
 function addWristTool(wrist) {
   // The repo has four CAD parts but no wrist tool. A small flange makes the
   // fourth axis visible; its bearing stays centered as the tool rolls.
-  const steel = new MeshStandardMaterial({ color: '#414448', metalness: .12, roughness: .68 });
-  const dark = new MeshStandardMaterial({ color: '#292c30', metalness: .12, roughness: .68 });
+  const steel = new MeshStandardMaterial({ color: '#414448', metalness: .18, roughness: .56 });
+  const dark = new MeshStandardMaterial({ color: '#292c30', metalness: .18, roughness: .56 });
   const bearing = new Mesh(new CylinderGeometry(.43, .43, .18, 32), dark);
   bearing.position.y = .09;
   const flange = new Mesh(new CylinderGeometry(.57, .57, .13, 32), steel);
