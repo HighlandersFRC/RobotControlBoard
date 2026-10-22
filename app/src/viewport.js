@@ -5,6 +5,7 @@ import { createSnow } from './snow.js';
 import { JOINTS } from './arm/rig.js';
 import { solveTarget, targetError } from './arm/kinematics.js';
 import { applyModelTheme, disposeObject } from './arm/models.js';
+import { createToolManipulator } from './arm/manipulator.js';
 
 export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewChange, onError }) {
   const container = canvas.parentElement;
@@ -71,6 +72,10 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   targetMarker.visible = false;
   scene.add(targetMarker);
   const snow = createSnow({ scene, camera, canvas, toggle: document.getElementById('show-snow'), renderer, rig });
+  const manipulator = createToolManipulator({
+    scene, camera, canvas, rig, button: document.getElementById('tool-handles'), onMove, onSelect, onReach,
+    onDrag: active => { controls.enabled = !active; },
+  });
 
   function setTheme() {
     const style = getComputedStyle(document.documentElement);
@@ -97,6 +102,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     colors.needsUpdate = true;
     grid.material.opacity = .28;
     snow.setTheme(token('--snow-color'), .72);
+    manipulator.setTheme(light);
     container.dataset.theme = light ? 'light' : 'dark';
   }
   setTheme();
@@ -126,18 +132,24 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     return object?.userData.jointIndex ?? null;
   }
 
-  // Capture runs before OrbitControls handles the pointer, so a picked joint
-  // never starts a camera drag at the same time.
+  // Wrist handles get first refusal; joint picking then runs before OrbitControls
+  // so moving the arm never starts a camera drag at the same time.
   canvas.addEventListener('pointerdown', event => {
-    if (!ready || event.button !== 0 || drag) return;
+    if (!ready || event.button !== 0 || drag || manipulator.active) return;
     const index = event.shiftKey ? null : pick(event);
     if (index === null && !event.shiftKey) return;
     event.preventDefault();
     controls.enabled = false;
     canvas.setPointerCapture(event.pointerId);
     drag = { id: event.pointerId, index, x: event.clientX, y: event.clientY, distance: 0, reach: event.shiftKey };
+    if (index === 3) {
+      cast(event);
+      drag.plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()), rig.toolPosition());
+      const point = raycaster.ray.intersectPlane(drag.plane, new THREE.Vector3());
+      drag.offset = rig.toolPosition().sub(point ?? rig.toolPosition());
+    }
     if (index !== null) onSelect(index);
-  }, { capture: true, signal });
+  }, { signal });
 
   const controls = new OrbitControls(camera, canvas);
   controls.target.set(0, 6, 0);
@@ -150,24 +162,29 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
 
   canvas.addEventListener('pointermove', event => {
     if (!ready) return;
+    if (manipulator.active && !drag) { canvas.style.cursor = 'move'; tooltip.hidden = true; return; }
     if (drag) {
       if (event.pointerId !== drag.id) return;
       const dx = event.clientX - drag.x;
       drag.distance += Math.abs(dx) + Math.abs(event.clientY - drag.y);
       drag.x = event.clientX;
       drag.y = event.clientY;
-      if (drag.index !== null) {
+      if (drag.plane) {
+        cast(event);
+        const target = raycaster.ray.intersectPlane(drag.plane, new THREE.Vector3());
+        if (target) drag.target = manipulator.moveTo(target.add(drag.offset));
+      } else if (drag.index !== null) {
         const angles = rig.getAngles();
         angles[drag.index] += dx * .006 * (drag.index === 0 ? -1 : 1);
         onMove(angles, 'manual');
       }
     }
     const index = drag?.index ?? pick(event);
-    canvas.style.cursor = index === null ? 'grab' : 'ew-resize';
+    canvas.style.cursor = index === 3 ? 'move' : index === null ? 'grab' : 'ew-resize';
     tooltip.hidden = index === null;
     if (index !== null) {
       const rect = container.getBoundingClientRect();
-      tooltip.textContent = `${JOINTS[index].name} · ${THREE.MathUtils.radToDeg(rig.getAngles()[index]).toFixed(1)}°`;
+      tooltip.textContent = index === 3 ? 'Drag wrist to move arm' : `${JOINTS[index].name} · ${THREE.MathUtils.radToDeg(rig.getAngles()[index]).toFixed(1)}°`;
       tooltip.style.left = `${Math.min(event.clientX - rect.left + 15, rect.width - 145)}px`;
       tooltip.style.top = `${Math.max(5, event.clientY - rect.top - 35)}px`;
     }
@@ -179,6 +196,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     drag = null;
     controls.enabled = true;
     if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    if (event.type === 'pointerup' && completed.target) onReach(targetError(rig, completed.target));
     if (event.type === 'pointerup' && completed.reach && completed.distance < 8) {
       cast(event);
       const target = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
@@ -230,7 +248,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     fit,
     setTheme,
     resize,
-    setReady() { setTheme(); ready = true; fit('perspective'); },
+    setReady() { setTheme(); ready = true; fit('perspective'); manipulator.setReady(); },
     setGrid(visible) { grid.visible = visible; },
     select(index) {
       selected = index;
@@ -255,8 +273,8 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
       view = 'custom';
       onViewChange(view);
     },
-    cancelDrag() { drag = null; controls.enabled = true; tooltip.hidden = true; },
-    render(delta = 0) { controls.update(); snow.tick(delta); renderer.render(scene, camera); },
-    dispose() { events.abort(); observer.disconnect(); controls.dispose(); snow.dispose(); disposeObject(scene); floorAlpha.dispose(); grid.geometry.dispose(); grid.material.dispose(); environment.dispose(); renderer.dispose(); key.shadow.dispose(); },
+    cancelDrag() { const pointerId = drag?.id; drag = null; manipulator.cancel(); controls.enabled = true; tooltip.hidden = true; if (pointerId !== undefined && canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId); },
+    render(delta = 0) { controls.update(); manipulator.updateScreen(); snow.tick(delta); renderer.render(scene, camera); },
+    dispose() { events.abort(); observer.disconnect(); manipulator.dispose(); controls.dispose(); snow.dispose(); disposeObject(scene); floorAlpha.dispose(); grid.geometry.dispose(); grid.material.dispose(); environment.dispose(); renderer.dispose(); key.shadow.dispose(); },
   };
 }

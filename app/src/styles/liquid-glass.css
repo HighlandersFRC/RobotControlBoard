@@ -101,6 +101,7 @@ body { background: radial-gradient(ellipse at 38% 12%, var(--page-glow), transpa
 .view-picker button[aria-pressed='true'] { color: var(--strong); }
 .view-indicator { position: absolute; top: 4px; left: 0; height: calc(100% - 8px); border-radius: 7px; background: var(--active-bg); pointer-events: none; transition: transform 180ms ease-out; }
 .view-actions .button { border-color: transparent; background: transparent; box-shadow: none; }
+.view-actions .button[aria-pressed='true'] { color: var(--strong); background: var(--active-bg); }
 .button { color: var(--control-ink); border: 1px solid var(--control-border); border-radius: 7px; background: var(--control-bg); box-shadow: none; padding: 8px 11px; font-size: 11px; font-weight: 450; transition: background-color 150ms ease-out, border-color 150ms ease-out; }
 .button:hover:not(:disabled) { border-color: var(--blue); background: var(--control-hover); }
 .button:active:not(:disabled) { background: var(--active-bg); }

@@ -35,7 +35,7 @@ async page => {
     const second = await page.locator('#arm-canvas').screenshot();
     check(!first.equals(second), 'Snow particles must animate.');
     const particleCount = Number(await page.locator('#viewport').getAttribute('data-snow-particles'));
-    check(particleCount > 2000 && particleCount <= 2600, 'Desktop snow must be denser while staying within its particle budget.');
+    check(particleCount === 5200, 'Desktop snow must be denser while staying within its particle budget.');
     check(await page.locator('#viewport').getAttribute('data-snow-avoidance') === 'arm', 'Snow should leave the arm area clearer.');
     await page.mouse.move(800, 420);
     await page.mouse.move(900, 480, { steps: 12 });

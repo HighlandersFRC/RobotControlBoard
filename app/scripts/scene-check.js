@@ -44,7 +44,7 @@ async page => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await page.locator('#viewport[data-ready="true"]').waitFor();
-  check(Number(await page.locator('#viewport').getAttribute('data-snow-particles')) === 1500, 'Mobile snow must use the smaller dense particle budget.');
+  check(Number(await page.locator('#viewport').getAttribute('data-snow-particles')) === 3000, 'Mobile snow must use the smaller dense particle budget.');
   await page.locator('#toggle-joints').click();
   check(await page.locator('#joint-sidebar').isVisible(), 'Mobile arm controls can be opened.');
   await page.locator('#toggle-inputs').click();

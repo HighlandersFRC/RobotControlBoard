@@ -40,4 +40,5 @@ The repository contains the original CAD exports under public/models/, the contr
 - Give the arm and its movement the most space.
 - Keep controls familiar and reveal secondary tools when needed.
 - Preserve input ownership, cancellation, and joint limits when changing the interface.
+- Let wrist position dragging coordinate the arm's joints, while retaining individual joint controls.
 - Respect system accessibility preferences and local appearance settings.

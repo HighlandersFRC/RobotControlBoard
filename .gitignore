@@ -15,6 +15,7 @@ dist-ssr
 output/
 app/.impeccable/config.local.json
 app/.impeccable/cache/
+app/.impeccable/review/
 app/.impeccable/*.cache.json
 
 # Editor directories and files

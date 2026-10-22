@@ -29,7 +29,7 @@ npm ci
 npm run dev
 ```
 
-Open the local address printed by Vite. The app supports posing the four-axis model, recording and replaying movement, camera and gamepad input, collapsible controls, and saved appearance settings. See the [app guide](app/README.md) for all controls and device behavior.
+Open the local address printed by Vite. Drag the wrist or its arrows to position the whole arm, or adjust individual joints. The app also supports recording and replaying movement, camera and gamepad input, collapsible controls, and saved appearance settings. See the [app guide](app/README.md) for all controls and device behavior.
 
 Run checks and build from `app/`:
 

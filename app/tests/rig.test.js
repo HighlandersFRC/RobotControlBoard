@@ -73,3 +73,46 @@ test('inverse kinematics reaches attainable poses and stays finite at singularit
     assert.ok(angles.every((angle, index) => Number.isFinite(angle) && angle >= JOINTS[index].min && angle <= JOINTS[index].max));
   }
 });
+
+test('wrist targets work on both sides of the shoulder without changing wrist roll', () => {
+  const rig = createRig();
+  for (const yaw of [-2.4, -.5, 0, 1.2, 2.7]) {
+    for (const shoulder of [-1.2, -.4, .3, .9]) {
+      for (const elbow of [-1.1, -.25, .25, 1.1]) {
+        const pose = [yaw, shoulder, elbow, .45];
+        rig.setAngles(pose);
+        const target = rig.toolPosition();
+        const solved = solveTarget(target, pose);
+        assert.equal(solved[3], .45);
+        assert.ok(solved.every((value, index) => Math.abs(value - pose[index]) < .001), 'An unchanged wrist target must not flip an existing pose.');
+        rig.setAngles(solved);
+        close(rig.toolPosition(), target, .001);
+      }
+    }
+  }
+});
+
+test('continuous wrist movement crosses the base axis without turntable or elbow jumps', () => {
+  const expected = createRig();
+  const actual = createRig();
+  actual.setAngles([.7, -.3, .12, -.4]);
+  for (let step = 0; step <= 120; step++) {
+    expected.setAngles([.7, -.3 + step * .005, .12, -.4]);
+    const target = expected.toolPosition();
+    const previous = actual.getAngles();
+    const next = solveTarget(target, previous, { continuous: true });
+    assert.ok(next.every((angle, index) => Math.abs(angle - previous[index]) < .06), 'A small wrist drag must keep a continuous joint solution.');
+    actual.setAngles(next);
+    close(actual.toolPosition(), target, .002);
+  }
+});
+
+test('wrist dragging holds the turntable limit instead of wrapping through a full turn', () => {
+  const rig = createRig();
+  rig.setAngles([-Math.PI + .005, -.7, .4, .2]);
+  const target = rig.toolPosition();
+  const current = [Math.PI - .005, -.7, .4, .2];
+  const solved = solveTarget(target, current, { continuous: true });
+  assert.equal(solved[0], Math.PI);
+  assert.ok(solved.every((angle, index) => Math.abs(angle - current[index]) < .02));
+});

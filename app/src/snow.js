@@ -1,7 +1,7 @@
 import { Box3, BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Plane, Points, Raycaster, ShaderMaterial, Vector2, Vector3, Vector4 } from 'three';
 
 // World-space simulation is shared by the renderer and deterministic tests.
-export function createSnowField(count = 2600, random = Math.random) {
+export function createSnowField(count = 5200, random = Math.random) {
   const positions = new Float32Array(count * 3);
   const velocities = new Float32Array(count * 3);
   const sizes = new Float32Array(count);
@@ -74,7 +74,7 @@ export function createSnow({ scene, camera, canvas, toggle, renderer, rig }) {
   const host = canvas.parentElement;
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const events = new AbortController();
-  const field = createSnowField(matchMedia('(max-width: 700px)').matches ? 1500 : 2600);
+  const field = createSnowField(matchMedia('(max-width: 700px)').matches ? 3000 : 5200);
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(field.positions, 3).setUsage(DynamicDrawUsage));
   geometry.setAttribute('size', new BufferAttribute(field.sizes, 1));
