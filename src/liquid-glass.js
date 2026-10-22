@@ -14,7 +14,7 @@ function edgeMap(width, height, radius) {
   const context = canvas.getContext('2d');
   const image = context.createImageData(width, height);
   const halfWidth = width / 2, halfHeight = height / 2;
-  const rim = Math.min(12, radius);
+  const rim = Math.min(18, radius);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const px = x - halfWidth, py = y - halfHeight;
@@ -23,7 +23,7 @@ function edgeMap(width, height, radius) {
       const ox = Math.max(qx, 0), oy = Math.max(qy, 0);
       const length = Math.hypot(ox, oy);
       const distance = length + Math.min(Math.max(qx, qy), 0) - radius;
-      const weight = Math.max(0, 1 - Math.abs(distance) / rim) ** 2;
+      const weight = Math.sin(Math.max(0, 1 - Math.abs(distance) / rim) * Math.PI / 2) ** 2;
       const nx = length ? ox / length : qx > qy ? 1 : 0;
       const ny = length ? oy / length : qy >= qx ? 1 : 0;
       const offset = (y * width + x) * 4;
@@ -64,13 +64,14 @@ export function createLiquidGlass() {
     const id = `budx-glass-edge-${index}`;
     const filter = svgElement('filter', { id, x: '0%', y: '0%', width: '100%', height: '100%', 'color-interpolation-filters': 'sRGB' });
     const image = svgElement('feImage', { result: 'edge', preserveAspectRatio: 'none' });
-    filter.append(image, svgElement('feDisplacementMap', { in: 'SourceGraphic', in2: 'edge', scale: '10', xChannelSelector: 'R', yChannelSelector: 'G' }));
+    filter.append(image, svgElement('feDisplacementMap', { in: 'SourceGraphic', in2: 'edge', scale: '22', xChannelSelector: 'R', yChannelSelector: 'G' }));
     defs.append(filter);
     surface.style.setProperty('--glass-refraction', `url("#${id}")`);
     surface.addEventListener('pointermove', event => {
       if (motion.matches || root.dataset.glassQuality === 'minimal') return;
       const bounds = surface.getBoundingClientRect();
       surface.style.setProperty('--shine-x', `${Math.round((event.clientX - bounds.left) / bounds.width * 100)}%`);
+      surface.style.setProperty('--shine-y', `${Math.round((event.clientY - bounds.top) / bounds.height * 100)}%`);
     }, { passive: true, signal });
     return { surface, image, size: '' };
   });

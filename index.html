@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#d7e7f2" />
+    <meta name="theme-color" content="#11151c" />
     <meta name="description" content="Pose, record, and control the BUDX robot arm." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>BUDX — Arm workbench</title>
@@ -24,7 +24,7 @@
         </div>
       </header>
       <main class="workspace">
-        <aside class="joint-sidebar glass-surface" data-glass="standard" aria-label="Arm controls">
+        <aside class="joint-sidebar glass-surface" data-glass="premium" aria-label="Arm controls">
           <section class="control-section">
             <div class="section-heading"><h1>Joint position</h1><span class="subtle">Degrees</span></div>
             <p class="section-description">Choose a joint, then drag its slider or the part.</p>
@@ -48,6 +48,7 @@
           <div class="sidebar-note">Local recordings<br /><span>Saved in this browser on this device.</span></div>
         </aside>
         <section id="viewport" class="viewport" aria-label="Interactive 3D robot arm">
+          <canvas id="snow-canvas" aria-hidden="true"></canvas>
           <canvas id="arm-canvas" tabindex="0" aria-label="Robot arm. Drag a part to move it, drag the background to orbit, or scroll to zoom."></canvas>
           <div class="viewport-toolbar">
             <div class="view-picker glass-surface" data-glass="premium" role="group" aria-label="Camera view"><button data-view="perspective" aria-pressed="true">Perspective</button><button data-view="front" aria-pressed="false">Front</button><button data-view="top" aria-pressed="false">Top</button></div>
@@ -56,9 +57,9 @@
           <div class="viewport-caption"><span class="viewport-title">BUDX / 4-axis arm</span><span id="selected-joint">Turntable selected</span></div>
           <div id="load-message" class="load-message" role="status"><span class="loading-mark"></span><strong>Assembling your workspace</strong><span id="load-detail">Loading four model parts…</span><button id="retry-load" class="button" hidden>Try again</button></div>
           <div id="joint-tooltip" class="joint-tooltip" hidden></div>
-          <div class="viewport-bottom"><span>Drag to orbit <span class="hint-separator">/</span> Scroll to zoom <span class="hint-separator">/</span> Shift + click to reach</span><label><input id="show-grid" type="checkbox" checked /> Grid</label></div>
+          <div class="viewport-bottom"><span>Drag to orbit <span class="hint-separator">/</span> Scroll to zoom <span class="hint-separator">/</span> Shift + click to reach</span><div class="scene-options"><label><input id="show-snow" type="checkbox" checked /> Snow</label><label><input id="show-grid" type="checkbox" checked /> Grid</label></div></div>
         </section>
-        <aside class="input-sidebar glass-surface" data-glass="standard" aria-label="Input devices">
+        <aside class="input-sidebar glass-surface" data-glass="premium" aria-label="Input devices">
           <section class="control-section">
             <div class="section-heading"><h2>Connections</h2><span class="connection-count" id="connection-count">0 active</span></div>
             <div class="device"><div class="device-heading"><span class="device-icon" aria-hidden="true">⌘</span><strong>Gamepad</strong><span class="device-dot" id="gamepad-dot"></span></div><p id="gamepad-status">Plug in a controller and press a button.</p></div>

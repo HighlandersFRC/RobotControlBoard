@@ -26,6 +26,8 @@ Open the localhost address printed by Vite. For a production build, run `npm run
 | Left / right arrow | Move the selected joint by 1°; hold Shift for 5° |
 | F | Fit the current pose in view |
 | Escape / Stop motion | Stop playback and control input at the current pose |
+| Fullscreen button | Expand the model viewer; Escape or the exit button returns to the workbench |
+| Snow checkbox | Toggle the falling snow; the preference is saved locally |
 
 Manual movement takes over from playback and unchecks **Move arm with hand**. Hand and serial input do not interrupt playback. To return to hand control, check that option again. Stop motion pauses serial input until a new manual movement or playback action. A gamepad must return to neutral before it can move the arm again.
 
@@ -59,9 +61,11 @@ The original wrist pivot had no mesh. A small procedural tool flange now makes w
 
 ## Code and checks
 
-The interface uses a web adaptation of the [Liquid Glass Widgets design guide](https://github.com/sdegenaar/liquid_glass_widgets/blob/main/skills/liquid-glass-widgets/SKILL.md). That package targets Flutter; this app keeps its JavaScript/Three.js stack. Floating controls have a single frosted layer, with locally generated edge-refraction maps reserved for the header and camera toolbar. Controls within a glass panel use ordinary painted surfaces. There are no extra dependencies or downloaded visual assets.
+The dark interface uses a web adaptation of the [Apple Liquid Glass skill](https://github.com/haider-nawaz/liquid-glass-skill). The reference targets native SwiftUI; this app keeps its JavaScript/Three.js stack. Clear graphite control panels float above the continuous scene and snow layer, with shared backdrop sampling, locally generated edge refraction, and pointer-responsive highlights. Controls inside a panel use ordinary painted surfaces. The model's framing accounts for the sidebars so it remains centered in the usable space. There are no extra dependencies or downloaded visual assets.
 
 The header's transparency button switches to an opaque appearance and remembers the choice in this browser. System Reduce Transparency, increased contrast, and forced colors take priority. Reduce Motion disables refractive effects and transitions; small screens use blur without SVG refraction. `src/liquid-glass.js` generates edge maps on resize, updates the camera selector, and cleans up observers on disposal. `src/styles/liquid-glass.css` contains the appearance and fallback rules.
+
+`src/fullscreen.js` expands the model viewer using native fullscreen, with an in-page fallback when embedded browsers reject or stall the native request. Both modes provide an exit button, Escape handling, focus containment, and restored joint controls on exit. `src/snow.js` draws a maximum of 170 particles behind the model using the existing render loop. Snow pauses when the tab is hidden or Reduce Motion is enabled.
 
 - `src/arm/`: geometry calibration, model loading, and inverse kinematics.
 - `src/viewport.js`: rendering, camera, picking, and pointer interaction.
@@ -83,6 +87,7 @@ For the browser smoke check, start the dev server and run these commands in anot
 npx --yes --package @playwright/cli playwright-cli open http://localhost:5173 --headed
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/browser-check.js
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/glass-check.js
+npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/viewer-check.js
 ```
 
 Draco decoding is served locally from `public/draco/`; it does not depend on a third-party CDN to display the arm. See `public/draco/LICENSE` for the decoder license.

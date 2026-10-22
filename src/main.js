@@ -1,6 +1,8 @@
 import './style.css';
 import './styles/liquid-glass.css';
 import { createLiquidGlass } from './liquid-glass.js';
+import { createFullscreen } from './fullscreen.js';
+import { createSnow } from './snow.js';
 import { createRig } from './arm/rig.js';
 import { disposeObject, loadModels } from './arm/models.js';
 import { createViewport } from './viewport.js';
@@ -28,6 +30,8 @@ const ui = createUI({
 });
 const reportError = message => ui.activity(message, true);
 const glass = createLiquidGlass();
+const fullscreen = createFullscreen({ target: element('viewport'), button: element('fullscreen'), onExpand: () => ui.activity('Viewer expanded. Press Esc to return.') });
+const snow = createSnow({ canvas: element('snow-canvas'), toggle: element('show-snow') });
 let storage;
 try { storage = window.localStorage; }
 catch { reportError('Browser storage is unavailable. Recordings will last for this session.'); }
@@ -107,6 +111,7 @@ function stop() {
 async function action(name) {
   if (name === 'stop') { stop(); return; }
   if (name === 'retry') { await load(); return; }
+  if (name === 'fullscreen') { await fullscreen.toggle(); return; }
   if (!ready) return;
   if (name === 'home') {
     motion.stop();
@@ -135,12 +140,6 @@ async function action(name) {
       setSource('hand');
       if (element('face-blur').checked) await tracker.setBlur(true);
     }
-  } else if (name === 'fullscreen') {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else if (element('app').requestFullscreen) await element('app').requestFullscreen();
-      else reportError('Fullscreen is unavailable in this browser.');
-    } catch { reportError('Fullscreen could not be opened.'); }
   }
   ui.motion(motion);
 }
@@ -166,7 +165,6 @@ document.addEventListener('keydown', event => {
     moveJoint(selected, rig.getAngles()[selected] + (event.key === 'ArrowLeft' ? -1 : 1) * Math.PI / 180 * (event.shiftKey ? 5 : 1));
   }
 }, { signal: events.signal });
-document.addEventListener('fullscreenchange', () => { element('fullscreen').setAttribute('aria-label', document.fullscreenElement ? 'Exit fullscreen' : 'Enter fullscreen'); }, { signal: events.signal });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     stop();
@@ -203,6 +201,7 @@ function tick(now) {
   const delta = Math.min((now - previous) / 1000, .1);
   previous = now;
   if (!document.hidden && ready) {
+    snow.tick(delta);
     gamepad.tick(delta, rig.getAngles(), selected);
     motion.tick(delta);
     serial.tick(now);
@@ -221,6 +220,8 @@ function dispose() {
   events.abort();
   ui.dispose();
   glass.dispose();
+  fullscreen.dispose();
+  snow.dispose();
   void tracker.stop();
   void serial.disconnect();
   viewport?.dispose();

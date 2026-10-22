@@ -9,7 +9,7 @@ async page => {
   if (await toggle.getAttribute('aria-pressed') === 'true') await toggle.click();
   await page.waitForFunction(() => document.documentElement.dataset.glassRefraction === 'on');
   check(await page.locator('.glass-surface .glass-surface').count() === 0, 'Refractive glass must never be nested.');
-  check(await page.locator('filter feImage[href^="data:image/png"]').count() === 3, 'Premium navigation surfaces need their edge maps.');
+  check(await page.locator('filter feImage[href^="data:image/png"]').count() === 5, 'Navigation and control surfaces need their edge maps.');
   check(await page.evaluate(() => getComputedStyle(document.querySelector('.joint-sidebar'), '::before').backdropFilter.includes('blur')), 'Control platters need a single frosted backdrop.');
 
   await toggle.click();
