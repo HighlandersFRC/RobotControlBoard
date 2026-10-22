@@ -13,6 +13,11 @@ async page => {
   check(await page.locator('.app-header, .brand').count() === 0, 'The branded header must be removed.');
   check(await page.locator('#joint-sidebar').isVisible(), 'Desktop opens with arm controls.');
   check(!await page.locator('#input-sidebar').isVisible(), 'Secondary devices start collapsed.');
+  check(await page.locator('#joint-sidebar').evaluate(element => element.clientWidth) === 282, 'Desktop sidebar dimensions must stay unchanged.');
+  check(!await page.getByRole('group', { name: 'Recording slot' }).isVisible(), 'Secondary recording controls start tucked away.');
+  await page.getByText('Recording options', { exact: true }).click();
+  check(await page.getByRole('group', { name: 'Recording slot' }).isVisible(), 'Saved slots remain available.');
+  await page.getByText('Recording options', { exact: true }).click();
   check(await page.locator('#viewport').getAttribute('data-grid-spacing') === '4', 'Grid cells must be four times wider.');
   for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Wrist', 30]]) {
     await page.getByRole('spinbutton', { name: `${name} angle` }).fill(String(value));
@@ -25,6 +30,8 @@ async page => {
   await page.screenshot({ path: 'output/playwright/scene-desktop.png' });
   await page.locator('#toggle-inputs').click();
   check(await page.locator('#input-sidebar').isVisible(), 'Devices can be expanded.');
+  check(!await page.locator('#camera-preview').isVisible() && !await page.locator('#hand-options').isVisible(), 'Inactive camera controls should stay out of the way.');
+  await page.screenshot({ path: 'output/playwright/scene-devices.png' });
   await page.locator('#toggle-joints').click();
   check(!await page.locator('#joint-sidebar').isVisible(), 'Arm controls can be collapsed independently.');
   await page.locator('#toggle-inputs').click();
@@ -35,6 +42,9 @@ async page => {
   check(!await page.locator('#joint-sidebar').isVisible(), 'Panel preference survives reload.');
   await page.screenshot({ path: 'output/playwright/scene-uncluttered.png' });
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await page.locator('#viewport[data-ready="true"]').waitFor();
+  check(Number(await page.locator('#viewport').getAttribute('data-snow-particles')) === 1500, 'Mobile snow must use the smaller dense particle budget.');
   await page.locator('#toggle-joints').click();
   check(await page.locator('#joint-sidebar').isVisible(), 'Mobile arm controls can be opened.');
   await page.locator('#toggle-inputs').click();

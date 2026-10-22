@@ -37,3 +37,24 @@ test('a delayed animation frame cannot launch snow outside the simulation bounds
     assert.ok(Math.abs(field.positions[i + 2]) <= 22);
   }
 });
+
+test('snow drifts away from arm links without redirecting distant flakes', () => {
+  const calm = createSnowField(2, () => .5);
+  const protectedField = createSnowField(2, () => .5);
+  calm.positions.set([.4, 8, .3, 14, 8, 14]);
+  protectedField.positions.set(calm.positions);
+  const link = { start: { x: 0, y: 4, z: 0 }, end: { x: 0, y: 12, z: 0 }, radius: 2 };
+  calm.step(.05, 1);
+  protectedField.step(.05, 1, null, [link]);
+  assert.ok(protectedField.positions[0] > calm.positions[0]);
+  assert.ok(protectedField.positions[2] > calm.positions[2]);
+  assert.deepEqual(protectedField.positions.slice(3), calm.positions.slice(3));
+});
+
+test('snow avoidance stays finite at a link center and a zero-length link', () => {
+  const field = createSnowField(1, () => .5);
+  const center = { x: 0, y: 15, z: 0 };
+  field.step(.05, 1, null, [{ start: center, end: center, radius: 2 }]);
+  assert.ok(field.positions.every(Number.isFinite));
+  assert.ok(field.positions[0] > 0);
+});

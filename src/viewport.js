@@ -21,14 +21,14 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   const environmentGenerator = new THREE.PMREMGenerator(renderer);
   const environment = environmentGenerator.fromScene(environmentSource, .04);
   scene.environment = environment.texture;
-  scene.environmentIntensity = .65;
+  scene.environmentIntensity = .4;
   environmentSource.dispose();
   environmentGenerator.dispose();
   const camera = new THREE.PerspectiveCamera(38, 1, .1, 180);
   camera.position.set(18, 14, 23);
   scene.add(rig.root);
-  scene.add(new THREE.HemisphereLight('#e4edff', '#11151e', 1.5));
-  const key = new THREE.DirectionalLight('#f2f5ff', 2.8);
+  scene.add(new THREE.HemisphereLight('#e3e3e3', '#17191c', 1.5));
+  const key = new THREE.DirectionalLight('#f1f1f1', 2.8);
   key.position.set(8, 20, 12);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -37,7 +37,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   key.shadow.normalBias = .025;
   key.shadow.blurSamples = 8;
   scene.add(key);
-  const fill = new THREE.DirectionalLight('#b5c7da', 1.7);
+  const fill = new THREE.DirectionalLight('#dddddd', 1.4);
   fill.position.set(-12, 10, -8);
   scene.add(fill);
   // Fade the floor into the page backdrop rather than exposing a hard plane edge.
@@ -69,7 +69,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   targetMarker.rotation.x = -Math.PI / 2;
   targetMarker.visible = false;
   scene.add(targetMarker);
-  const snow = createSnow({ scene, camera, canvas, toggle: document.getElementById('show-snow'), renderer });
+  const snow = createSnow({ scene, camera, canvas, toggle: document.getElementById('show-snow'), renderer, rig });
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -209,7 +209,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
         while (parent && parent.userData.jointIndex === undefined) parent = parent.parent;
         const active = parent?.userData.jointIndex === selected;
         (Array.isArray(object.material) ? object.material : [object.material]).forEach(material => {
-          if (material.emissive) { material.emissive.set('#315f80'); material.emissiveIntensity = active ? .14 : 0; }
+          if (material.emissive) { material.emissive.set('#b9bec5'); material.emissiveIntensity = active ? .045 : 0; }
         });
       });
     },

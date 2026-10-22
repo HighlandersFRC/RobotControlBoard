@@ -12,7 +12,7 @@ export function createUI({ onSelect, onJoint, onAction, onSlot, onView }) {
     const min = Math.round(MathUtils.radToDeg(joint.min)), max = Math.round(MathUtils.radToDeg(joint.max));
     const wrapper = document.createElement('div');
     wrapper.className = 'joint-control';
-    wrapper.innerHTML = `<div class="joint-heading"><button class="joint-select" aria-pressed="false"><span>${index + 1}</span>${joint.name}</button><label class="angle-field"><input type="number" min="${min}" max="${max}" step="0.1" value="0" aria-label="${joint.name} angle" /><span>°</span></label></div><input type="range" min="${min}" max="${max}" step="0.1" value="0" aria-label="${joint.name} position" /><div class="joint-limits"><span>${min}°</span><span>${max}°</span></div>`;
+    wrapper.innerHTML = `<div class="joint-heading"><button class="joint-select" aria-pressed="false" title="Select ${joint.name} (${index + 1})">${joint.name}</button><label class="angle-field"><input type="number" min="${min}" max="${max}" step="0.1" value="0" aria-label="${joint.name} angle" /><span>°</span></label></div><input type="range" min="${min}" max="${max}" step="0.1" value="0" title="${min}° to ${max}°" aria-label="${joint.name} position" />`;
     element('joint-controls').append(wrapper);
     const button = wrapper.querySelector('button');
     const number = wrapper.querySelector('[type="number"]');
@@ -81,7 +81,7 @@ export function createUI({ onSelect, onJoint, onAction, onSlot, onView }) {
       element('input-source').textContent = title;
       element('input-note').textContent = note;
     },
-    gamepad(id) { connection('gamepad', !!id); element('gamepad-status').textContent = id ?? 'Plug in a controller and press a button.'; },
+    gamepad(id) { connection('gamepad', !!id); element('gamepad-status').textContent = id ?? 'No controller connected'; },
     serial(connected, busy) {
       connection('serial', connected);
       element('serial-status').textContent = connected ? 'Connected · 115200 baud' : 'USB serial · 115200 baud';
@@ -92,6 +92,8 @@ export function createUI({ onSelect, onJoint, onAction, onSlot, onView }) {
       if (cameraState === state) return;
       cameraState = state;
       const enabled = state === 'tracking' || state === 'detecting';
+      element('camera-preview').hidden = !enabled;
+      element('hand-options').hidden = !enabled;
       connection('camera', enabled);
       element('camera-placeholder').hidden = enabled;
       element('camera-state').textContent = enabled ? 'On' : state === 'loading' ? 'Loading' : 'Off';

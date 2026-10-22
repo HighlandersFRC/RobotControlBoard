@@ -33,6 +33,7 @@ async page => {
   await page.reload();
   await page.locator('#viewport[data-ready="true"]').waitFor();
   check(await page.getByRole('button', { name: 'Play', exact: true }).isEnabled(), 'Recording must survive a reload.');
+  await page.getByText('Recording options', { exact: true }).click();
   await page.getByRole('checkbox', { name: 'Loop', exact: true }).uncheck();
   await page.getByRole('button', { name: 'Play', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('motion-state').textContent === 'Idle');
