@@ -104,7 +104,7 @@ export function createUI({ onSelect, onJoint, onAction, onSlot, onView }) {
     loading(count) { element('load-detail').textContent = `${count} of 4 model parts loaded`; },
     ready() { element('load-message').hidden = true; element('model-status').textContent = 'Model ready'; element('model-status').className = 'status-pill ready'; element('viewport').dataset.ready = 'true'; },
     loadError(message) { element('load-message').hidden = false; element('load-message').classList.add('error'); element('load-message').querySelector('strong').textContent = 'The arm could not be loaded'; element('load-detail').textContent = message; element('retry-load').hidden = false; element('model-status').textContent = 'Model unavailable'; element('model-status').className = 'status-pill error'; },
-    retry() { element('load-message').classList.remove('error'); element('retry-load').hidden = true; element('load-message').querySelector('strong').textContent = 'Assembling your workspace'; },
+    retry() { element('load-message').classList.remove('error'); element('retry-load').hidden = true; element('load-message').querySelector('strong').textContent = 'Loading arm'; },
     dispose() { events.abort(); },
   };
 }

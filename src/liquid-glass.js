@@ -67,12 +67,6 @@ export function createLiquidGlass() {
     filter.append(image, svgElement('feDisplacementMap', { in: 'SourceGraphic', in2: 'edge', scale: '22', xChannelSelector: 'R', yChannelSelector: 'G' }));
     defs.append(filter);
     surface.style.setProperty('--glass-refraction', `url("#${id}")`);
-    surface.addEventListener('pointermove', event => {
-      if (motion.matches || root.dataset.glassQuality === 'minimal') return;
-      const bounds = surface.getBoundingClientRect();
-      surface.style.setProperty('--shine-x', `${Math.round((event.clientX - bounds.left) / bounds.width * 100)}%`);
-      surface.style.setProperty('--shine-y', `${Math.round((event.clientY - bounds.top) / bounds.height * 100)}%`);
-    }, { passive: true, signal });
     return { surface, image, size: '' };
   });
   let frame = 0;

@@ -5,16 +5,18 @@ async page => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(page.url());
   await page.locator('#viewport[data-ready="true"]').waitFor();
+  if (await page.locator('#toggle-joints').getAttribute('aria-expanded') === 'false') await page.locator('#toggle-joints').click();
+  if (await page.locator('#toggle-inputs').getAttribute('aria-expanded') === 'false') await page.locator('#toggle-inputs').click();
   const toggle = page.locator('#glass-toggle');
   if (await toggle.getAttribute('aria-pressed') === 'true') await toggle.click();
   await page.waitForFunction(() => document.documentElement.dataset.glassRefraction === 'on');
   check(await page.locator('.glass-surface .glass-surface').count() === 0, 'Refractive glass must never be nested.');
-  check(await page.locator('filter feImage[href^="data:image/png"]').count() === 5, 'Navigation and control surfaces need their edge maps.');
+  check(await page.locator('filter feImage[href^="data:image/png"]').count() === 4, 'Navigation and control surfaces need their edge maps.');
   check(await page.evaluate(() => getComputedStyle(document.querySelector('.joint-sidebar'), '::before').backdropFilter.includes('blur')), 'Control platters need a single frosted backdrop.');
 
   await toggle.click();
   check(await page.evaluate(() => document.documentElement.dataset.glassQuality === 'minimal'), 'Transparency toggle must enable the opaque fallback.');
-  check(await page.evaluate(() => getComputedStyle(document.querySelector('.app-header'), '::before').backdropFilter === 'none'), 'Reduced transparency must disable backdrop filters.');
+  check(await page.evaluate(() => getComputedStyle(document.querySelector('.joint-sidebar'), '::before').backdropFilter === 'none'), 'Reduced transparency must disable backdrop filters.');
   await page.reload();
   await page.locator('#viewport[data-ready="true"]').waitFor();
   check(await toggle.getAttribute('aria-pressed') === 'true', 'The transparency preference must survive a reload.');
@@ -36,7 +38,7 @@ async page => {
   await page.waitForFunction(() => document.documentElement.dataset.glassQuality === 'minimal');
   check(await toggle.isDisabled(), 'The system contrast preference must take priority over the appearance toggle.');
   await page.emulateMedia({ contrast: 'no-preference', forcedColors: 'active' });
-  check(await page.evaluate(() => getComputedStyle(document.querySelector('.app-header'), '::before').display === 'none'), 'Forced colors must remove decorative optical layers.');
+  check(await page.evaluate(() => getComputedStyle(document.querySelector('.joint-sidebar'), '::before').display === 'none'), 'Forced colors must remove decorative optical layers.');
   await page.emulateMedia({ forcedColors: 'none' });
   await page.waitForFunction(() => document.documentElement.dataset.glassQuality === 'standard');
 
@@ -54,6 +56,7 @@ async page => {
     if (width <= 580) check(await page.evaluate(() => document.documentElement.dataset.glassRefraction === 'off'), 'Small screens must use the lighter glass tier.');
     if (width === 390) await page.screenshot({ path: 'output/playwright/liquid-glass-mobile.png', fullPage: true });
   }
+  if (await page.locator('#toggle-joints').getAttribute('aria-expanded') === 'false') await page.locator('#toggle-joints').click();
   for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Wrist', 30]]) {
     const input = page.getByRole('spinbutton', { name: `${name} angle`, exact: true });
     await input.fill(String(value));

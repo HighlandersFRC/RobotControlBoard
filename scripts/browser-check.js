@@ -5,6 +5,8 @@ async page => {
   const origin = new URL(page.url()).origin;
   await page.reload();
   await page.locator('#viewport[data-ready="true"]').waitFor();
+  if (await page.locator('#toggle-joints').getAttribute('aria-expanded') === 'false') await page.locator('#toggle-joints').click();
+  if (await page.locator('#toggle-inputs').getAttribute('aria-expanded') === 'false') await page.locator('#toggle-inputs').click();
   check(await page.getByRole('slider').count() === 4, 'All four joint sliders must be present.');
 
   async function angle(name, value) {
@@ -41,7 +43,7 @@ async page => {
   await page.waitForFunction(() => document.getElementById('motion-state').textContent === 'Idle');
   check(await page.locator('#motion-state').textContent() === 'Idle', 'Manual movement must interrupt playback.');
   await page.getByRole('button', { name: 'Sweep', exact: true }).click();
-  await page.getByRole('button', { name: 'Stop motion Esc', exact: true }).click();
+  await page.locator('#stop-motion').click();
   const stopped = await page.getByRole('slider', { name: 'Turntable position' }).inputValue();
   await page.waitForTimeout(200);
   check(await page.getByRole('slider', { name: 'Turntable position' }).inputValue() === stopped, 'Stop must hold the current pose.');
@@ -50,7 +52,7 @@ async page => {
     await button.click();
     check(await button.getAttribute('aria-pressed') === 'true', `${view} camera must become active.`);
   }
-  await page.getByRole('button', { name: 'Home arm', exact: true }).click();
+  await page.locator('#home-arm').click();
   await page.locator('#arm-canvas').focus();
   await page.keyboard.press('2');
   await page.keyboard.press('ArrowLeft');
@@ -117,7 +119,7 @@ async page => {
   });
   await cameraPage.getByRole('button', { name: 'Enable camera', exact: true }).click();
   await cameraPage.waitForFunction(() => !!window.testCamera.finishPermission);
-  await cameraPage.getByRole('button', { name: 'Stop motion Esc', exact: true }).click();
+  await cameraPage.locator('#stop-motion').click();
   await cameraPage.evaluate(async () => window.testCamera.finishPermission(await window.testCamera.createStream()));
   await cameraPage.getByRole('button', { name: 'Disable camera', exact: true }).waitFor();
   check(!await cameraPage.getByRole('checkbox', { name: 'Move arm with hand' }).isChecked(), 'Late camera permission must not undo Stop.');

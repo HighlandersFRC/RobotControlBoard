@@ -28,21 +28,25 @@ async page => {
     check(await page.getByRole('spinbutton', { name: 'Shoulder angle' }).isEnabled(), 'Joint controls must work after exiting fullscreen.');
 
     stage = 'snow activation';
-    await page.waitForFunction(() => document.getElementById('snow-canvas').dataset.state === 'on');
-    const first = await page.locator('#snow-canvas').evaluate(canvas => canvas.toDataURL());
+    await page.waitForFunction(() => document.getElementById('viewport').dataset.snowState === 'on');
+    check(await page.locator('#viewport').getAttribute('data-snow-renderer') === 'webgl', 'Snow must render in the arm scene.');
+    const first = await page.locator('#arm-canvas').screenshot();
     await page.waitForTimeout(200);
-    const second = await page.locator('#snow-canvas').evaluate(canvas => canvas.toDataURL());
-    check(first !== second, 'Snow particles must animate.');
-    check(Number(await page.locator('#snow-canvas').getAttribute('data-particles')) <= 170, 'Snow must stay within its particle budget.');
+    const second = await page.locator('#arm-canvas').screenshot();
+    check(!first.equals(second), 'Snow particles must animate.');
+    check(Number(await page.locator('#viewport').getAttribute('data-snow-particles')) <= 900, 'Snow must stay within its particle budget.');
+    await page.mouse.move(800, 420);
+    await page.mouse.move(900, 480, { steps: 12 });
+    await page.waitForFunction(() => Number(document.getElementById('viewport').dataset.snowInteractions) > 0);
     await page.getByRole('checkbox', { name: 'Snow', exact: true }).uncheck();
-    check(await page.locator('#snow-canvas').getAttribute('data-state') === 'off', 'Snow can be disabled.');
+    check(await page.locator('#viewport').getAttribute('data-snow-state') === 'off', 'Snow can be disabled.');
     await page.reload();
     await page.locator('#viewport[data-ready="true"]').waitFor();
     check(!await page.getByRole('checkbox', { name: 'Snow', exact: true }).isChecked(), 'Snow preference must persist.');
     await page.getByRole('checkbox', { name: 'Snow', exact: true }).check();
     await page.emulateMedia({ reducedMotion: 'reduce' });
     stage = 'Reduce Motion';
-    await page.waitForFunction(() => document.getElementById('snow-canvas').dataset.state === 'paused');
+    await page.waitForFunction(() => document.getElementById('viewport').dataset.snowState === 'paused');
     check(await page.getByRole('checkbox', { name: 'Snow', exact: true }).isDisabled(), 'Reduce Motion must pause snow.');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
 

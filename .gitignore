@@ -13,6 +13,9 @@ dist-ssr
 *.local
 .playwright-cli/
 output/
+.impeccable/config.local.json
+.impeccable/cache/
+.impeccable/*.cache.json
 
 # Editor directories and files
 .vscode/*

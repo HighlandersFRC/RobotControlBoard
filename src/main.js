@@ -2,7 +2,7 @@ import './style.css';
 import './styles/liquid-glass.css';
 import { createLiquidGlass } from './liquid-glass.js';
 import { createFullscreen } from './fullscreen.js';
-import { createSnow } from './snow.js';
+import { createPanels } from './panels.js';
 import { createRig } from './arm/rig.js';
 import { disposeObject, loadModels } from './arm/models.js';
 import { createViewport } from './viewport.js';
@@ -31,7 +31,7 @@ const ui = createUI({
 const reportError = message => ui.activity(message, true);
 const glass = createLiquidGlass();
 const fullscreen = createFullscreen({ target: element('viewport'), button: element('fullscreen'), onExpand: () => ui.activity('Viewer expanded. Press Esc to return.') });
-const snow = createSnow({ canvas: element('snow-canvas'), toggle: element('show-snow') });
+const panels = createPanels({ onChange: () => viewport?.resize() });
 let storage;
 try { storage = window.localStorage; }
 catch { reportError('Browser storage is unavailable. Recordings will last for this session.'); }
@@ -201,14 +201,13 @@ function tick(now) {
   const delta = Math.min((now - previous) / 1000, .1);
   previous = now;
   if (!document.hidden && ready) {
-    snow.tick(delta);
     gamepad.tick(delta, rig.getAngles(), selected);
     motion.tick(delta);
     serial.tick(now);
     if (motion.mode === 'idle' && source === 'sequence') setSource('manual');
     ui.motion(motion);
   }
-  viewport?.render();
+  viewport?.render(delta);
   frame = requestAnimationFrame(tick);
 }
 
@@ -221,7 +220,7 @@ function dispose() {
   ui.dispose();
   glass.dispose();
   fullscreen.dispose();
-  snow.dispose();
+  panels.dispose();
   void tracker.stop();
   void serial.disconnect();
   viewport?.dispose();

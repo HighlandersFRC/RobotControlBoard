@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { createSnow } from './snow.js';
 import { JOINTS } from './arm/rig.js';
 import { solveTarget, targetError } from './arm/kinematics.js';
 import { disposeObject } from './arm/models.js';
@@ -7,7 +9,7 @@ import { disposeObject } from './arm/models.js';
 export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewChange, onError }) {
   const container = canvas.parentElement;
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog('#11151c', 25, 75);
+  scene.fog = new THREE.Fog('#11151c', 55, 150);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -15,11 +17,18 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = .95;
+  const environmentSource = new RoomEnvironment();
+  const environmentGenerator = new THREE.PMREMGenerator(renderer);
+  const environment = environmentGenerator.fromScene(environmentSource, .04);
+  scene.environment = environment.texture;
+  scene.environmentIntensity = .65;
+  environmentSource.dispose();
+  environmentGenerator.dispose();
   const camera = new THREE.PerspectiveCamera(38, 1, .1, 180);
   camera.position.set(18, 14, 23);
   scene.add(rig.root);
-  scene.add(new THREE.HemisphereLight('#e4edff', '#11151e', 2.4));
-  const key = new THREE.DirectionalLight('#f2f5ff', 3.4);
+  scene.add(new THREE.HemisphereLight('#e4edff', '#11151e', 1.5));
+  const key = new THREE.DirectionalLight('#f2f5ff', 2.8);
   key.position.set(8, 20, 12);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -28,7 +37,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   key.shadow.normalBias = .025;
   key.shadow.blurSamples = 8;
   scene.add(key);
-  const fill = new THREE.DirectionalLight('#a8bddc', 2.6);
+  const fill = new THREE.DirectionalLight('#b5c7da', 1.7);
   fill.position.set(-12, 10, -8);
   scene.add(fill);
   // Fade the floor into the page backdrop rather than exposing a hard plane edge.
@@ -50,15 +59,17 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   ground.position.y = -.015;
   ground.receiveShadow = true;
   scene.add(ground);
-  const grid = new THREE.GridHelper(100, 100, '#526178', '#354052');
+  const grid = new THREE.GridHelper(100, 25, '#738195', '#485567');
   grid.position.y = .001;
   grid.material.transparent = true;
-  grid.material.opacity = .32;
+  grid.material.opacity = .28;
+  container.dataset.gridSpacing = '4';
   scene.add(grid);
   const targetMarker = new THREE.Mesh(new THREE.RingGeometry(.16, .23, 32), new THREE.MeshBasicMaterial({ color: '#315f80', side: THREE.DoubleSide }));
   targetMarker.rotation.x = -Math.PI / 2;
   targetMarker.visible = false;
   scene.add(targetMarker);
+  const snow = createSnow({ scene, camera, canvas, toggle: document.getElementById('show-snow'), renderer });
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -174,18 +185,20 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     onViewChange(view);
   }
 
-  const observer = new ResizeObserver(() => {
+  function resize() {
     const width = container.clientWidth, height = container.clientHeight;
     if (!width || !height) return;
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     if (ready) fit();
-  });
+  }
+  const observer = new ResizeObserver(resize);
   observer.observe(container);
 
   return {
     fit,
+    resize,
     setReady() { ready = true; fit('perspective'); },
     setGrid(visible) { grid.visible = visible; },
     select(index) {
@@ -212,7 +225,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
       onViewChange(view);
     },
     cancelDrag() { drag = null; controls.enabled = true; tooltip.hidden = true; },
-    render() { controls.update(); renderer.render(scene, camera); },
-    dispose() { events.abort(); observer.disconnect(); controls.dispose(); disposeObject(scene); floorAlpha.dispose(); grid.geometry.dispose(); grid.material.dispose(); renderer.dispose(); key.shadow.dispose(); },
+    render(delta = 0) { controls.update(); snow.tick(delta); renderer.render(scene, camera); },
+    dispose() { events.abort(); observer.disconnect(); controls.dispose(); snow.dispose(); disposeObject(scene); floorAlpha.dispose(); grid.geometry.dispose(); grid.material.dispose(); environment.dispose(); renderer.dispose(); key.shadow.dispose(); },
   };
 }
