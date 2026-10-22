@@ -14,7 +14,7 @@ import { HandTracking } from './inputs/hand-tracking.js';
 import { createUI, element } from './ui.js';
 
 export const rig = createRig();
-let selected = 0;
+let selected = 3;
 let ready = false;
 let loading = false;
 let disposed = false;
@@ -188,6 +188,8 @@ async function load() {
     if (disposed) { disposeObject(rig.root); return; }
     ready = true;
     viewport.setReady();
+    // Use upright bounds for a stable opening scale, then show the folded pose.
+    rig.setAngles([-116.6, 60, 61.4, 0].map(value => value * Math.PI / 180));
     selectJoint(selected);
     ui.ready();
     ui.angles(rig.getAngles(), rig.toolPosition());
@@ -234,7 +236,7 @@ window.addEventListener('pagehide', event => {
 }, { signal: events.signal });
 import.meta.hot?.dispose(dispose);
 
-selectJoint(0);
+selectJoint(selected);
 ui.angles(rig.getAngles(), rig.toolPosition());
 ui.motion(motion);
 try {

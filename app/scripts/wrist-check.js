@@ -63,6 +63,7 @@ async page => {
     }, { axis, joint });
   }
 
+  await page.locator('#tool-handles').click();
   await pose(page);
   check(await page.locator('#viewport').getAttribute('data-snow-particles') === '5200', 'Desktop snow must use the doubled particle count.');
   const center = page.getByRole('button', { name: 'Move entire arm', exact: true });
@@ -138,6 +139,7 @@ async page => {
     touch.on('pageerror', error => errors.push(error.message));
     await touch.goto(origin);
     await touch.locator('#viewport[data-ready="true"]').waitFor();
+    await touch.locator('#tool-handles').click();
     await pose(touch);
     await touch.getByRole('button', { name: 'Perspective', exact: true }).click();
     const before = await state(touch);

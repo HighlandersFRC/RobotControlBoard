@@ -113,6 +113,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   let drag = null;
   let ready = false;
   let view = 'perspective';
+  let openingBounds = null;
   let selected = 0;
   const events = new AbortController();
   const signal = events.signal;
@@ -158,7 +159,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   controls.minDistance = 7;
   controls.maxDistance = 85;
   controls.maxPolarAngle = Math.PI / 2 - .015;
-  controls.addEventListener('start', () => { view = 'custom'; onViewChange(view); });
+  controls.addEventListener('start', () => { openingBounds = null; view = 'custom'; onViewChange(view); });
 
   canvas.addEventListener('pointermove', event => {
     if (!ready) return;
@@ -213,19 +214,27 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
   canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); onError('The 3D view lost its graphics connection. Reload to restore it.'); }, { signal });
 
   function fit(nextView = view) {
+    openingBounds = null;
+    frame(nextView);
+  }
+
+  function frame(nextView, box = new THREE.Box3().setFromObject(rig.root)) {
     view = nextView;
-    const box = new THREE.Box3().setFromObject(rig.root);
+    const opening = box === openingBounds;
     const sphere = box.getBoundingSphere(new THREE.Sphere());
     const vertical = THREE.MathUtils.degToRad(camera.fov / 2);
     const style = getComputedStyle(container);
     const left = parseFloat(style.getPropertyValue('--scene-left')) || 0;
     const right = parseFloat(style.getPropertyValue('--scene-right')) || 0;
     const width = container.clientWidth, height = container.clientHeight;
-    camera.setViewOffset(width, height, (right - left) / 2, 0, width, height);
+    const openingOffset = opening ? height * (width <= 700 ? -.013 : .037) : 0;
+    camera.setViewOffset(width, height, (right - left) / 2 + openingOffset, opening ? height * .0024 : 0, width, height);
     const horizontal = Math.atan(Math.tan(vertical) * Math.max(120, width - left - right) / height);
-    const distance = sphere.radius / Math.sin(Math.min(vertical, horizontal)) * 1.17;
+    // The opening composition matches the owner's low, wide reference view.
+    const distance = opening ? Math.max(58.6, sphere.radius / Math.tan(horizontal) * .75) : sphere.radius / Math.sin(Math.min(vertical, horizontal)) * 1.17;
     const direction = view === 'front' ? new THREE.Vector3(0, .025, 1) : view === 'top' ? new THREE.Vector3(0, 1, .001) : camera.position.clone().sub(controls.target);
     if (view === 'perspective') direction.set(.85, .48, 1);
+    if (opening) { sphere.center.set(0, 7, 0); direction.set(-.6, .062, -.8); }
     controls.target.copy(sphere.center);
     camera.position.copy(sphere.center).addScaledVector(direction.normalize(), distance);
     camera.lookAt(sphere.center);
@@ -239,7 +248,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    if (ready) fit();
+    if (ready) frame(view, openingBounds ?? undefined);
   }
   const observer = new ResizeObserver(resize);
   observer.observe(container);
@@ -248,7 +257,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     fit,
     setTheme,
     resize,
-    setReady() { setTheme(); ready = true; fit('perspective'); manipulator.setReady(); },
+    setReady() { setTheme(); ready = true; openingBounds = new THREE.Box3().setFromObject(rig.root); frame('perspective', openingBounds); manipulator.setReady(); },
     setGrid(visible) { grid.visible = visible; },
     select(index) {
       selected = index;
@@ -264,6 +273,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     },
     orbit(horizontal, vertical, zoom, delta) {
       if (!horizontal && !vertical && !zoom) return;
+      openingBounds = null;
       const offset = camera.position.clone().sub(controls.target);
       const spherical = new THREE.Spherical().setFromVector3(offset);
       spherical.theta -= horizontal * delta * 1.6;

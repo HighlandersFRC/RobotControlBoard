@@ -18,7 +18,7 @@ export function createToolManipulator({ scene, camera, canvas, rig, button, onMo
   const events = new AbortController();
   const center = document.getElementById('wrist-handle');
   const ray = new Raycaster();
-  let visible = true;
+  let visible = false;
   let ready = false;
   let centerDrag = null;
 

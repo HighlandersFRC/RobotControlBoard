@@ -2,6 +2,8 @@
 
 A browser workbench for the four-axis BUDX arm. Pose the model directly, record movements into three local slots, or connect a gamepad, Arduino, or camera.
 
+The opening view shows the folded arm at −116.6° turntable, 60° shoulder, 61.4° elbow, and 0° wrist, with the wider Perspective framing and wrist arrows hidden. Use Move arm handles to show the arrows. Home still returns every joint to zero; Fit view frames the current pose. Saved theme and panel preferences remain in effect.
+
 ## Run it
 
 Run these commands from this `app/` directory. For the Arduino sketch and its different serial protocol, see the [hardware guide](../hardware/README.md).
