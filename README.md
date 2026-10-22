@@ -1,56 +1,54 @@
-# Highlanders 4499 Outreach Kit Robot Code
+# BUDX
 
-Drive the outreach kit robot with a joystick in the PestoLink iPhone app.
-The robot shows up over Bluetooth as **robotikit**.
+A browser controller and Arduino firmware for the BUDX robot arm.
 
-This project is set up for the kit's **single-core ESP32-S0WD, with 4 MB flash**.
+## Repository layout
 
-## Get the code
+```text
+app/                          Web controller
+  src/                        Interface, 3D arm, motion, and device input
+  public/                     CAD models and local Draco decoder
+  tests/                      Controller regression tests
+  scripts/                    Browser checks
+  README.md                   App controls and development guide
+hardware/
+  arduino_control/
+    arduino_control.ino       Original five-servo PCA9685 sketch
+  README.md                   Firmware setup and serial commands
+.github/workflows/check.yml   App tests and production build
+netlify.toml                  Netlify build paths
+```
 
-1. Install [Git](https://git-scm.com/downloads), [VS Code](https://code.visualstudio.com/), and the [PlatformIO extension](https://platformio.org/install/ide?install=vscode).
-2. In VS Code, press **Ctrl+Shift+P** and choose **Git: Clone**.
-3. Paste `https://github.com/HighlandersFRC/RobotControlBoard.git`.
-4. Open the cloned folder containing `platformio.ini`.
+## Run the app
 
-## Upload
+Use Node.js 20.19+ or 22.12+; Node 22 LTS is recommended.
 
-1. Plug the ESP32 into your computer with a USB data cable.
-2. Open the PlatformIO sidebar (alien-head icon).
-3. Expand **Project Tasks → pesto_test → General** and click **Upload**.
-   This builds the code and uploads it. The first build can take several minutes.
-4. After it says **SUCCESS**, open **Monitor** for serial output at **115200 baud**.
+```sh
+cd app
+npm ci
+npm run dev
+```
 
-If uploading gets stuck at `Connecting...`, hold **BOOT** until writing starts.
-There is one program in this repo, so the toolbar Upload button uses it too.
-For later edits, use Upload directly. Keep `.pio/` between builds; using **Clean**
-or deleting it forces the framework to compile again.
+Open the local address printed by Vite. The app supports posing the four-axis model, recording and replaying movement, camera and gamepad input, collapsible controls, and saved appearance settings. See the [app guide](app/README.md) for all controls and device behavior.
 
-## Drive
+Run checks and build from `app/`:
 
-1. Connect the motors to the board's **M1** and **M2** outputs and turn on the kit's motor supply.
-2. Open the PestoLink iPhone app, allow Bluetooth access, and connect to **robotikit**.
-3. Choose **Joystick (axes 0, 1)**. Up/down drives forward/backward; left/right steers.
+```sh
+npm test
+npm run build
+npm run preview
+```
 
-Centering the joystick stops the motors. They also stop when Bluetooth disconnects
-or no controller packet arrives for 500 ms. USB power alone does not power the motors.
+The production output is `app/dist/`. Netlify and GitHub Actions are configured to build from `app/`.
 
-## Make changes
+## Set up the hardware
 
-All robot code is in [`src/main.cpp`](src/main.cpp). The settings at the top control
-pins, joystick deadband, speed limit, and motor direction. Set `MAX_DRIVE_POWER`
-to `0.5f` for half power, or change `INVERT_MOTOR_ONE` / `INVERT_MOTOR_TWO` if a motor
-turns the wrong way. Build and upload again after editing.
+Open [arduino_control.ino](hardware/arduino_control/arduino_control.ino) in Arduino IDE. The sketch is preserved unchanged from the supplied [BUD-Controller source](https://github.com/httpsHavshSer1/BUD-Controller/blob/bb2ee22a21c11dbd5796ded424afcb8dfd5395d1/arduino_control.ino). It drives PCA9685 channels 0–4 at 60 Hz and accepts single-letter commands over USB serial at 115200 baud.
 
-| Motor signal | GPIO |
-| --- | --- |
-| M1 PWM / direction | 18 / 19 |
-| M2 PWM / direction | 16 / 17 |
-| Shared driver enable | 23 |
+Follow the [hardware guide](hardware/README.md) for the library, connections, upload steps, and command table. The sketch centers all five servos when it starts; check the pulse limits against your arm before powering the servos.
 
-`platformio.ini` selects the board and dependencies. `config/esp32.defaults` holds
-the single-core and Bluetooth settings. Keep both CMake files: this chip needs
-Arduino compiled with ESP-IDF, and the root file fixes a BLE header conflict.
+## App and firmware compatibility
 
-`lib/PestoLink-Receive` contains [PestoLink](https://github.com/AlfredoSystems/PestoLink-Receive)
-with a small task change for the single-core chip. Build files and downloaded
-dependencies stay in `.pio/` and are ignored by Git.
+The supplied sketch and the app currently use different serial protocols. The sketch accepts letters such as `a`, `d`, and `c`. The web app sends four absolute joint targets, such as `S0:90,S1:108,S2:90,S3:90`, followed by a newline. Connecting them at the same baud rate does not translate those commands.
+
+Use this sketch through Arduino Serial Monitor for manual control. Direct web control requires firmware that implements the app's four-joint target protocol, or an explicit protocol adapter. The included sketch has five servo channels; the app models four joints, so the fifth channel also needs a defined mapping before integration.

@@ -1,13 +1,29 @@
-# PlatformIO build output and generated ESP-IDF configuration
-.pio/
-sdkconfig.*
-
-# Editor caches and local launch settings
-.vscode/*
-!.vscode/settings.json
-*.code-workspace
-
-# Local build logs and operating-system files
+# Logs
+logs
 *.log
-Thumbs.db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+.playwright-cli/
+output/
+app/.impeccable/config.local.json
+app/.impeccable/cache/
+app/.impeccable/*.cache.json
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
