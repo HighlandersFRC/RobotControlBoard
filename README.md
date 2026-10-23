@@ -34,12 +34,21 @@ or deleting it forces the framework to compile again.
 Centering the joystick stops the motors. They also stop when Bluetooth disconnects
 or no controller packet arrives for 500 ms. USB power alone does not power the motors.
 
+Steering has a wider center deadband and a gentler response near the center to
+make straight driving easier. Full sideways input still gives full turning power.
+
 ## Make changes
 
 The working joystick program is in [`src/main.cpp`](src/main.cpp). The settings at the top control
 pins, joystick deadband, speed limit, and motor direction. Set `MAX_DRIVE_POWER`
 to `0.5f` for half power, or change `INVERT_MOTOR_ONE` / `INVERT_MOTOR_TWO` if a motor
 turns the wrong way. Build and upload again after editing.
+
+If one motor is still faster, push straight forward and press button **0** while
+watching the Serial Monitor. It prints the requested power for M1 and M2, not RPM.
+If both commands match, lower the faster motor's `MOTOR_ONE_SCALE` or
+`MOTOR_TWO_SCALE` in small steps, such as `1.0f` to `0.95f`, and test again.
+Both scales start at `1.0f`; the software cannot measure wheel speed without sensors.
 
 The five kit folders under `src/` are placeholders for separate robot programs.
 `pesto_test` still builds only `src/main.cpp`.

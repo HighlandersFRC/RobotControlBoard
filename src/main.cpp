@@ -10,10 +10,19 @@ constexpr int M2_PH_PIN = 17;
 constexpr int SLEEP_PIN = 23;
 
 constexpr float JOYSTICK_DEADBAND = 0.08f;
+constexpr float STEERING_DEADBAND = 0.15f;
 constexpr float MAX_DRIVE_POWER = 1.0f;
+// Reduce only the faster motor's scale if equal commands still drive unevenly.
+constexpr float MOTOR_ONE_SCALE = 1.0f;
+constexpr float MOTOR_TWO_SCALE = 1.0f;
 constexpr bool INVERT_MOTOR_ONE = false;
 constexpr bool INVERT_MOTOR_TWO = false;
 constexpr uint32_t COMMAND_TIMEOUT_MS = 500;
+
+static_assert(MOTOR_ONE_SCALE > 0.0f && MOTOR_ONE_SCALE <= 1.0f,
+              "MOTOR_ONE_SCALE must be greater than 0 and at most 1");
+static_assert(MOTOR_TWO_SCALE > 0.0f && MOTOR_TWO_SCALE <= 1.0f,
+              "MOTOR_TWO_SCALE must be greater than 0 and at most 1");
 
 bool button0WasHeld = false;
 bool previouslyConnected = false;
@@ -25,13 +34,13 @@ float clampPower(float power) {
     return constrain(power, -1.0f, 1.0f);
 }
 
-float joystickAxis(uint8_t axis) {
-    float value = PestoLink.getAxis(axis);
-    if (fabsf(value) <= JOYSTICK_DEADBAND) {
+float joystickAxis(uint8_t axis, float deadband) {
+    float value = clampPower(PestoLink.getAxis(axis));
+    if (fabsf(value) <= deadband) {
         return 0.0f;
     }
     // Keep full travel while removing the small movement around the center.
-    float magnitude = (fabsf(value) - JOYSTICK_DEADBAND) / (1.0f - JOYSTICK_DEADBAND);
+    float magnitude = (fabsf(value) - deadband) / (1.0f - deadband);
     return value < 0.0f ? -magnitude : magnitude;
 }
 
@@ -111,15 +120,19 @@ void loop() {
     bool freshCommand = connected && haveControllerPacket &&
                         millis() - lastControllerPacketMs <= COMMAND_TIMEOUT_MS;
 
+    float motorOne = 0.0f;
+    float motorTwo = 0.0f;
     if (freshCommand) {
         // PestoLink axis 1 is negative when the joystick is pushed up.
-        float throttle = -joystickAxis(1);
-        float steering = joystickAxis(0);
-        float motorOne = throttle + steering;
-        float motorTwo = throttle - steering;
+        float throttle = -joystickAxis(1, JOYSTICK_DEADBAND);
+        float steering = joystickAxis(0, STEERING_DEADBAND);
+        // Preserve full turning power, with finer steering near the center.
+        steering *= fabsf(steering);
+        motorOne = throttle + steering;
+        motorTwo = throttle - steering;
         float scale = fmaxf(1.0f, fmaxf(fabsf(motorOne), fabsf(motorTwo)));
-        motorOne = motorOne / scale * MAX_DRIVE_POWER;
-        motorTwo = motorTwo / scale * MAX_DRIVE_POWER;
+        motorOne = motorOne / scale * MAX_DRIVE_POWER * MOTOR_ONE_SCALE;
+        motorTwo = motorTwo / scale * MAX_DRIVE_POWER * MOTOR_TWO_SCALE;
 
         if (motorOne == 0.0f && motorTwo == 0.0f) {
             stopMotors();
@@ -135,7 +148,7 @@ void loop() {
     bool button0IsHeld = freshCommand && PestoLink.buttonHeld(0);
 
     if (button0IsHeld && !button0WasHeld) {
-        Serial.println("Button 0 was pressed!");
+        Serial.printf("Requested power: M1=%.3f M2=%.3f\n", motorOne, motorTwo);
     }
 
     button0WasHeld = button0IsHeld;
