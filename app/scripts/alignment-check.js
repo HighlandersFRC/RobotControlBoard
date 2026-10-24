@@ -48,6 +48,9 @@ async page => {
     await target.locator('#toggle-inputs').click();
     await target.locator('#connect-serial').click();
     await target.getByRole('button', { name: 'Disconnect Arduino', exact: true }).waitFor();
+    check(await target.getByRole('slider', { name: 'Shoulder position' }).getAttribute('max') === '90', 'Shoulder slider exposes all 180 degrees.');
+    await angle('Shoulder', 90);
+    check((await pose())[1] === 90 && (await writes()).length === 0, 'Alignment reaches +90 degrees without USB movement.');
     for (const [name, value] of [['Turntable', 25], ['Shoulder', -30], ['Elbow', 40], ['Claw', -20]]) await angle(name, value);
     const aligned = await pose();
     check(JSON.stringify(aligned) === JSON.stringify([25, -30, 40, -20]), 'Setup directly positions the model.');
@@ -71,7 +74,7 @@ async page => {
     await target.waitForFunction(() => window.usb.writes.at(-1)?.includes('S3:150'));
     const sent = await writes();
     check(sent.length > 0, 'Fresh control input sends commands.');
-    check(sent.every(text => /^S0:103,S1:72,S2:130,S3:\d+\n$/.test(text)), 'Only claw changes; the first packet retains the aligned other joints and original protocol.');
+    check(sent.every(text => /^S0:103,S1:60,S2:130,S3:\d+\n$/.test(text)), 'Only claw changes; the first packet retains the aligned other joints and original protocol.');
     check(sent.at(-1).includes('S3:150'), 'Claw reaches the requested position.');
 
     // Re-alignment waits for an accepted write, then drops any old destination.

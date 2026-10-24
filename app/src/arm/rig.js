@@ -3,7 +3,7 @@ import { Group, MathUtils, Vector3 } from 'three';
 const radians = MathUtils.degToRad;
 export const JOINTS = [
   { name: 'Turntable', axis: 'y', min: radians(-180), max: radians(180) },
-  { name: 'Shoulder', axis: 'z', min: radians(-90), max: radians(60) },
+  { name: 'Shoulder', axis: 'z', min: radians(-90), max: radians(90) },
   { name: 'Elbow', axis: 'z', min: radians(-90), max: radians(90) },
   { name: 'Claw', axis: 'y', min: radians(-60), max: radians(60) },
 ];

@@ -79,6 +79,20 @@ test('serial input rejects negative indices, partial numbers, NaN, and unknown f
   assert.equal(parseSerialLine('DX:20,DY:-10', [0, 0, 0, 0]).dx, .02);
 });
 
+test('shoulder covers all 180 physical degrees with matching command and feedback angles', () => {
+  for (const degrees of [-90, -45, 0, 60, 75, 90]) {
+    const angles = [0, degrees * Math.PI / 180, 0, 0];
+    assert.equal(encodeAngles(angles), `S0:90,S1:${degrees + 90},S2:90,S3:90\n`);
+    const feedback = parseSerialLine(`P1:${degrees + 90}`, [0, 0, 0, 0]);
+    assert.ok(Math.abs(feedback.angles[1] - angles[1]) < 1e-9);
+  }
+  const rig = createRig();
+  rig.setAngles([0, Math.PI / 2, 0, 0], 'alignment');
+  assert.equal(rig.getAngles()[1], Math.PI / 2, 'Alignment must reach the new upper limit.');
+  rig.setAngles([0, Math.PI, 0, 0]);
+  assert.equal(rig.getAngles()[1], Math.PI / 2, 'Commands stay inside the physical 180-degree travel.');
+});
+
 test('serial writer awaits each write, coalesces changes, and cancels queued output on Stop', async () => {
   const writes = [];
   let releaseWrite;
@@ -134,7 +148,7 @@ test('Stop during an asynchronous serial connection remains in effect after open
   assert.deepEqual(errors, []);
 });
 
-test('a six-second USB stall cannot skip the shoulder from 108 to 164', async t => {
+test('a six-second USB stall cannot skip the shoulder from 90 to 137', async t => {
   let release;
   const f = await serialFixture({ write: (_, count) => count === 1 ? new Promise(resolve => { release = resolve; }) : undefined });
   t.after(() => f.connection.disconnect());
@@ -146,21 +160,21 @@ test('a six-second USB stall cannot skip the shoulder from 108 to 164', async t 
     f.time(frame * 1000 / 60);
     f.connection.tick(frame * 1000 / 60);
   }
-  assert.equal(Number(encodeAngles(rig.getAngles()).match(/S1:(\d+)/)[1]), 164);
+  assert.equal(Number(encodeAngles(rig.getAngles()).match(/S1:(\d+)/)[1]), 137);
   f.time(6000);
   release();
   await f.connection.writing;
   await f.tick(6050);
-  assert.deepEqual(f.shoulders(), [108, 109]);
-  const expectedOtherChannels = encodeAngles(rig.getAngles()).replace(/S1:\d+/, 'S1:109');
+  assert.deepEqual(f.shoulders(), [90, 91]);
+  const expectedOtherChannels = encodeAngles(rig.getAngles()).replace(/S1:\d+/, 'S1:91');
   assert.equal(f.writes.at(-1).text, expectedOtherChannels);
   await f.tick(6100);
   assert.equal(f.writes.length, 2, 'The shoulder must not burst after the stalled write.');
   await f.tick(6200);
-  assert.deepEqual(f.shoulders(), [108, 109, 110]);
+  assert.deepEqual(f.shoulders(), [90, 91, 92]);
   f.set([.5, -1, .3, 0]);
   await f.tick(6350);
-  assert.deepEqual(f.shoulders(), [108, 109, 110, 109]);
+  assert.deepEqual(f.shoulders(), [90, 91, 92, 91]);
   assert.deepEqual(f.errors, []);
 });
 
@@ -171,13 +185,13 @@ test('other joints keep updating while shoulder output waits for its next step',
   await f.tick(0);
   f.set([1.5, 1, 1.5, 0]);
   await f.tick(50);
-  assert.deepEqual(f.shoulders(), [109, 109]);
+  assert.deepEqual(f.shoulders(), [91, 91]);
   assert.notEqual(f.writes[0].text.match(/S0:\d+/)[0], f.writes[1].text.match(/S0:\d+/)[0]);
   assert.notEqual(f.writes[0].text.match(/S2:\d+/)[0], f.writes[1].text.match(/S2:\d+/)[0]);
   await f.tick(100);
   assert.equal(f.writes.length, 2);
   await f.tick(150);
-  assert.deepEqual(f.shoulders(), [109, 109, 110]);
+  assert.deepEqual(f.shoulders(), [91, 91, 92]);
 });
 
 test('Stop discards shoulder catch-up and a resumed reversal uses the last completed command', async t => {
@@ -191,10 +205,10 @@ test('Stop discards shoulder catch-up and a resumed reversal uses the last compl
   await f.connection.writing;
   f.connection.resume();
   await f.tick(1000);
-  assert.deepEqual(f.shoulders(), [109]);
+  assert.deepEqual(f.shoulders(), [91]);
   f.set([0, -1, 0, 0]);
   await f.tick(1200);
-  assert.deepEqual(f.shoulders(), [109, 108]);
+  assert.deepEqual(f.shoulders(), [91, 90]);
 });
 
 test('returning to the previous shoulder target during a write does not lose the reversal', async t => {
@@ -211,7 +225,7 @@ test('returning to the previous shoulder target during a write does not lose the
   release();
   await f.connection.writing;
   await f.tick(300);
-  assert.deepEqual(f.shoulders(), [108, 109, 108]);
+  assert.deepEqual(f.shoulders(), [90, 91, 90]);
 });
 
 test('incoming position reports cannot overwrite an active or delayed USB movement', async t => {

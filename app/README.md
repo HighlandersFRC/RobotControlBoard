@@ -31,7 +31,7 @@ This is a manual position reference, not sensor calibration: match the physical 
 
 Movement is limited to 75° per second for the turntable and elbow, 8° per second for the shoulder, and 150° per second for the claw (10× the previous speed). The shoulder ramps its speed up and down by at most 30°/s², braking early for gentler starts, stops, and reversals. These limits apply to sliders, keyboard, model dragging, controller, hand tracking, and playback; alignment adjustments move only the model. Stop cancels any remaining movement target and shoulder ramp immediately. The original USB connection and serial message format are unchanged.
 
-The shoulder also has a limit at USB output: each `S1` target changes by at most one servo degree, spaced about 104 ms apart, using the last completed write. A stalled write cannot skip ahead to a distant on-screen pose or release a burst of shoulder commands. Other joints keep their existing update rate. Stop drops remaining shoulder steps; incoming position reports cannot replace an active or queued USB movement. The model remains a command preview and may run ahead while USB is delayed.
+The shoulder also has a limit at USB output: each `S1` target changes by at most one servo degree, spaced 125 ms apart, using the last completed write. A stalled write cannot skip ahead to a distant on-screen pose or release a burst of shoulder commands. Other joints keep their existing update rate. Stop drops remaining shoulder steps; incoming position reports cannot replace an active or queued USB movement. The model remains a command preview and may run ahead while USB is delayed.
 
 | Input | Action |
 | --- | --- |
@@ -62,12 +62,12 @@ Recordings last up to one minute. **Save recording**, changing slots, or stoppin
 **Arduino:** Chrome or Edge on localhost/HTTPS is required for Web Serial. The baud rate and line protocol are unchanged:
 
 ```text
-Browser → Arduino: S0:90,S1:108,S2:90,S3:90\n
-Arduino → browser: P0:90,P1:108,P2:90,P3:90\n
+Browser → Arduino: S0:90,S1:90,S2:90,S3:90\n
+Arduino → browser: P0:90,P1:90,P2:90,P3:90\n
 Camera orbit:      DX:20,DY:-10\n
 ```
 
-Servo positions map 0–180 to each joint's allowed range. Output is coalesced to at most 20 messages per second, and browser-originated writes suppress incoming position echoes for 500 ms. Invalid fields are ignored and values are clamped. Browser writes are awaited before the writer lock is released. Confirm physical joint calibration in your firmware before connecting the arm; the simulator does not model collisions or hardware feedback.
+Servo positions map 0–180 to each joint's allowed range. The shoulder maps −90° / 0° / +90° in the model to 0 / 90 / 180 on USB; its opening 60° pose is not a travel limit. Output is coalesced to at most 20 messages per second, and browser-originated writes suppress incoming position echoes for 500 ms. Invalid fields are ignored and values are clamped. Browser writes are awaited before the writer lock is released. Confirm physical joint calibration in your firmware before connecting the arm; the simulator does not model collisions or hardware feedback.
 
 **Camera:** Enable the camera explicitly. Tracking assets are downloaded from pinned MediaPipe packages on jsDelivr only when needed; video processing runs locally. Smooth motion is enabled by default. Face blur affects the local preview only. Denied permissions, missing cameras, failed downloads, and tracking failures release the camera and show a useful error. Hiding the tab stops motion and releases the camera. Camera access and real Arduino/gamepad operation need verification on your hardware.
 
@@ -75,7 +75,7 @@ Servo positions map 0–180 to each joint's allowed range. Output is coalesced t
 
 The four original glTF exports use a shared CAD origin, metres, and Z up. `src/arm/rig.js` converts that coordinate system once, defines the actual bearing heights, and offsets each mesh back around its own pivot. Shoulder and elbow rotations therefore keep their mating bearing centers coincident. The elbow socket export sits 2.032 mm above the upper arm's bearing center; the mount corrects that offset.
 
-The original wrist pivot had no mesh. A small procedural tool flange now makes wrist roll visible and remains attached to the forearm. It represents a tool mount, not an additional supplied CAD part. Joint ranges remain turntable ±180°, shoulder −90° to 60°, elbow ±90°, and the fourth control ±60°. The control is labeled Claw for the replacement hardware; the supplied CAD still displays the original tool mount.
+The original wrist pivot had no mesh. A small procedural tool flange now makes wrist roll visible and remains attached to the forearm. It represents a tool mount, not an additional supplied CAD part. Joint ranges remain turntable ±180°, shoulder ±90° (180° total), elbow ±90°, and the fourth control ±60°. The control is labeled Claw for the replacement hardware; the supplied CAD still displays the original tool mount.
 
 `src/arm/kinematics.js` uses these same link dimensions and joint limits for inverse kinematics. Targets outside the workspace produce the nearest pose found by the limited solver, with a visible message.
 

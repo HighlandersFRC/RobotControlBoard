@@ -12,7 +12,7 @@ test('CAD bearing faces remain coincident throughout the full joint ranges', () 
   const rig = createRig();
   // Compare actual mesh-space bearing centers, not only parent group origins.
   for (let yaw = -180; yaw <= 180; yaw += 60) {
-    for (let shoulder = -90; shoulder <= 60; shoulder += 30) {
+    for (let shoulder = -90; shoulder <= 90; shoulder += 30) {
       for (let elbow = -90; elbow <= 90; elbow += 30) {
         for (const wrist of [-60, 0, 60]) {
           rig.setAngles([yaw, shoulder, elbow, wrist].map(value => value * Math.PI / 180));
