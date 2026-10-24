@@ -32,8 +32,22 @@ For Balancing Robot, SDA is GPIO 21 and SCL is GPIO 22. The complementary filter
 | --- | ---: |
 | M1 PWM / direction | 18 / 19 |
 | M2 PWM / direction | 16 / 17 |
-| Shared motor-driver enable | 23 |
-| Front Loader servo | 25 |
-| IMU SDA / SCL | 21 / 22 |
+| Shared driver enable | 23 |
 
-`src/main.cpp` selects the source program using the active PlatformIO environment. The root and `src/` CMake files are required for this Arduino + ESP-IDF project.
+`platformio.ini` selects the board and dependencies. `config/esp32.defaults` holds
+the single-core and Bluetooth settings. Keep both CMake files: this chip needs
+Arduino compiled with ESP-IDF, and the root file fixes a BLE header conflict.
+
+`lib/PestoLink-Receive` contains [PestoLink](https://github.com/AlfredoSystems/PestoLink-Receive)
+with a small task change for the single-core chip. Build files and downloaded
+dependencies stay in `.pio/` and are ignored by Git.
+
+## If the first build fails
+
+PlatformIO downloads CMake and the ESP32 build tools automatically. If the build
+reports `Could not find CMAKE_ROOT`, PlatformIO's local CMake download is
+incomplete. Close VS Code, delete the `tool-cmake` folder inside
+`%USERPROFILE%\.platformio\packages`, reopen the project, and build again.
+This folder is part of PlatformIO's local installation, not this repository, so
+cloning the project does not copy it. The `.pio/` folder in the project is also
+generated locally and is not included in Git.
