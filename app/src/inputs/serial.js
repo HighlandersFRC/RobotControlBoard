@@ -1,98 +1,47 @@
-import { JOINTS } from '../arm/rig.js';
+import { JOINTS, clampAngle } from '../arm/rig.js';
 
-export const SERVO_MIN = 150, SERVO_MAX = 600, SERVO_CENTER = 375;
-export const PULSES_PER_SECOND = 30;
-export const ARDUINO_STARTUP_MS = 2000;
-export const LETTER_AXES = Object.freeze([
-  { channel: 0, decrease: 'a', increase: 'd', step: 20 },
-  { channel: 1, decrease: 's', increase: 'w', step: 3 },
-  { channel: 2, decrease: 'q', increase: 'e', step: 15 },
-  { channel: 4, decrease: 'i', increase: 'u', step: 15 },
-]);
-const clampPulse = value => Math.max(SERVO_MIN, Math.min(SERVO_MAX, value));
-
-// The firmware has relative commands and no telemetry. The current screen
-// pose becomes the reference on connection; opening a port never moves a servo.
-export class LetterProtocol {
-  constructor(angles) {
-    this.positions = LETTER_AXES.map(() => SERVO_CENTER);
-    this.lastWrites = LETTER_AXES.map(() => -Infinity);
-    this.cursor = 0;
-    this.rebase(angles);
+export function parseSerialLine(line, angles) {
+  if (typeof line !== 'string' || line.length > 256) return null;
+  const next = [...angles];
+  let changed = false;
+  let dx = 0, dy = 0;
+  for (const field of line.trim().split(',')) {
+    const match = /^(P[0-3]|DX|DY):(-?\d+(?:\.\d+)?)$/.exec(field.trim());
+    if (!match) continue;
+    const [, key, raw] = match;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) continue;
+    if (key.startsWith('P')) {
+      const index = Number(key[1]);
+      const joint = JOINTS[index];
+      next[index] = clampAngle(joint.min + Math.min(180, Math.max(0, value)) / 180 * (joint.max - joint.min), index);
+      changed = true;
+    } else if (key === 'DX') dx = Math.max(-1000, Math.min(1000, value)) * .001;
+    else dy = Math.max(-1000, Math.min(1000, value)) * .001;
   }
-  rebase(angles) {
-    this.reference = [...angles];
-    this.origin = [...this.positions];
-    this.targets = [...this.positions];
-  }
-  setTarget(angles) {
-    if (!Array.isArray(angles) || angles.length !== 4 || !angles.every(Number.isFinite)) return false;
-    this.targets = angles.map((angle, index) => clampPulse(this.origin[index] +
-      (angle - this.reference[index]) / (JOINTS[index].max - JOINTS[index].min) * (SERVO_MAX - SERVO_MIN)));
-    return true;
-  }
-  next(now) {
-    for (let offset = 0; offset < LETTER_AXES.length; offset++) {
-      const index = (this.cursor + offset) % LETTER_AXES.length;
-      const axis = LETTER_AXES[index];
-      if (now - this.lastWrites[index] < axis.step / PULSES_PER_SECOND * 1000) continue;
-      const difference = this.targets[index] - this.positions[index];
-      const nextPulse = clampPulse(this.positions[index] + Math.sign(difference) * axis.step);
-      // Only take a step that improves the estimate, avoiding chatter between
-      // adjacent positions when a target falls between firmware-sized steps.
-      if (Math.abs(this.targets[index] - nextPulse) >= Math.abs(difference) - 1e-7) continue;
-      return { index, letter: difference > 0 ? axis.increase : axis.decrease, nextPulse };
-    }
-    return null;
-  }
-  sent(command, now) {
-    this.positions[command.index] = command.nextPulse;
-    this.lastWrites[command.index] = now;
-    this.cursor = (command.index + 1) % LETTER_AXES.length;
-  }
+  return changed || dx || dy ? { angles: changed ? next : null, dx, dy } : null;
 }
 
-// Compatibility with controllers that understand the previous app's S-lines.
-// Keep the replacement claw on channel 4, even in this format. One degree per
-// serial tick caps position changes at 10 servo degrees/second.
-export class PositionProtocol extends LetterProtocol {
-  setTarget(angles) {
-    if (!super.setTarget(angles)) return false;
-    this.targets = this.targets.map(pulse => SERVO_MIN + Math.round((pulse - SERVO_MIN) / 2.5) * 2.5);
-    return true;
-  }
-  next() {
-    const positions = this.positions.map((pulse, index) => pulse + Math.max(-2.5, Math.min(2.5, this.targets[index] - pulse)));
-    if (positions.every((pulse, index) => Math.abs(pulse - this.positions[index]) < 1e-7)) return null;
-    const message = positions.map((pulse, index) => `S${LETTER_AXES[index].channel}:${Math.round((pulse - SERVO_MIN) / 2.5)}`).join(',') + '\n';
-    return { message, positions };
-  }
-  sent(command, now) {
-    this.positions = [...command.positions];
-    this.lastWrites.fill(now);
-  }
+export function encodeAngles(angles) {
+  return JOINTS.map((joint, index) => {
+    const angle = clampAngle(angles[index], index);
+    if (angle === null) throw new TypeError('Serial angles must be finite.');
+    return `S${index}:${Math.round((angle - joint.min) / (joint.max - joint.min) * 180)}`;
+  }).join(',') + '\n';
 }
 
 export class SerialConnection {
-  constructor({ getAngles = () => [0, 0, 0, 0], onStatus = () => {}, onError = () => {}, onTraffic = () => {}, serial = globalThis.navigator?.serial, format = 'letters', settle = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)) }) {
-    Object.assign(this, { getAngles, onStatus, onError, onTraffic, serial, settle });
-    if (!['letters', 'positions'].includes(format)) throw new TypeError('Unknown Arduino command format.');
-    this.format = format;
+  constructor({ getAngles, onAngles, onOrbit, onStatus, onError, serial = navigator.serial }) {
+    Object.assign(this, { getAngles, onAngles, onOrbit, onStatus, onError, serial });
     this.port = null;
     this.busy = false;
+    this.pending = null;
     this.writing = null;
     this.lastWrite = -Infinity;
+    this.lastMessage = '';
     this.suspended = false;
-    this.generation = 0;
-    this.faulted = false;
-    this.ready = false;
-    this.sentCount = 0;
   }
-  setFormat(format) {
-    if (this.busy || this.port || !['letters', 'positions'].includes(format)) return false;
-    this.format = format;
-    return true;
-  }
+
   async toggle() {
     if (this.busy) return;
     this.busy = true;
@@ -103,101 +52,85 @@ export class SerialConnection {
         if (!this.serial) throw new Error('USB serial needs Chrome or Edge on localhost or HTTPS.');
         this.suspended = false;
         const port = await this.serial.requestPort();
-        await port.open({ baudRate: 115200 });
+        try { await port.open({ baudRate: 115200 }); }
+        catch (error) { this.port = null; throw error; }
         this.port = port;
-        this.generation++;
-        this.ready = false;
-        this.sentCount = 0;
-        this.onTraffic({ state: 'starting', count: 0 });
-        // Opening USB serial can reset the board. Do not count commands as
-        // delivered while its bootloader is still running, or replay input
-        // made before the board was ready.
-        await this.settle(ARDUINO_STARTUP_MS);
-        if (this.port !== port) return;
-        this.protocol = new (this.format === 'positions' ? PositionProtocol : LetterProtocol)(this.getAngles());
-        this.rebaseAfterWrite = null;
-        this.faulted = false;
-        this.lastWrite = -Infinity;
-        this.ready = true;
-        this.onTraffic({ state: 'ready', count: 0 });
-        if (port.readable) this.reading = this.read(port);
+        this.lastMessage = '';
+        this.reading = this.read(port);
       }
     } catch (error) {
-      if (this.port && !this.ready) await this.disconnect();
       if (error.name !== 'NotFoundError') this.onError(error.message || 'Could not connect to the serial port.');
-    } finally { this.busy = false; this.onStatus(!!this.port, false); }
+    } finally {
+      this.busy = false;
+      this.onStatus(!!this.port, false);
+    }
   }
+
   async read(port) {
     let reader;
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let failed = false;
     try {
       reader = port.readable.getReader();
       this.reader = reader;
-      // Drain diagnostics, never treating them as position feedback or input.
-      while (!(await reader.read()).done) { /* The supplied sketch sends no pose data. */ }
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        if (buffer.length > 1024) buffer = '';
+        for (const line of lines) {
+          if (this.suspended) continue;
+          const message = parseSerialLine(line, this.getAngles());
+          if (!message) continue;
+          if (message.angles && performance.now() - this.lastWrite > 500) this.onAngles(message.angles, 'serial');
+          if (message.dx || message.dy) this.onOrbit(message.dx, message.dy);
+        }
+      }
     } catch (error) {
-      if (this.port === port) this.onError(`Serial connection ended: ${error.message}`);
+      failed = true;
+      this.onError(`Serial connection ended: ${error.message}`);
     } finally {
       reader?.releaseLock();
-      if (this.reader === reader) this.reader = null;
-      if (this.port === port && !this.busy) void this.disconnect();
+      this.reader = null;
+      // Do not await disconnect here: it waits for this read task to finish.
+      if ((failed || this.port === port) && !this.busy) void this.disconnect();
     }
   }
-  queue(angles) { if (this.ready && this.port && !this.suspended) this.protocol.setTarget(angles); }
+
+  queue(angles) {
+    if (!this.port || this.suspended) return;
+    const message = encodeAngles(angles);
+    this.pending = message === this.lastMessage ? null : message;
+  }
+
   tick(now) {
-    if (!this.ready || !Number.isFinite(now) || !this.port?.writable || this.writing || this.suspended || this.faulted || now - this.lastWrite < 100) return;
-    const command = this.protocol.next(now);
-    if (!command) return;
-    const protocol = this.protocol, generation = this.generation;
-    let writer;
-    try { writer = this.port.writable.getWriter(); }
-    catch (error) { this.faulted = true; this.hold(); this.onError(`Serial write failed: ${error.message}. Reconnect Arduino to resume.`); return; }
+    if (!this.port?.writable || !this.pending || this.writing || this.suspended || now - this.lastWrite < 50) return;
+    const message = this.pending;
+    this.pending = null;
+    const writer = this.port.writable.getWriter();
     this.lastWrite = now;
-    // One awaited write at a time. Neither format addresses channel 3.
-    this.writing = Promise.resolve().then(async () => {
-      if (this.suspended || generation !== this.generation) return false;
-      await writer.write(new TextEncoder().encode(command.message ?? command.letter));
-      return true;
-    })
-      .then(written => {
-        if (!written || generation !== this.generation) return;
-        protocol.sent(command, now);
-        this.onTraffic({ state: 'sent', count: ++this.sentCount, ...(command.message ? { message: command.message.trim() } : { letter: command.letter, joint: JOINTS[command.index].name }) });
-        if (this.rebaseAfterWrite) {
-          protocol.rebase(this.rebaseAfterWrite);
-          this.rebaseAfterWrite = null;
-          if (!this.suspended) protocol.setTarget(this.getAngles());
-        } else if (this.suspended) protocol.rebase(this.getAngles());
-      })
-      .catch(error => { if (generation === this.generation) { this.faulted = true; this.hold(); this.onError(`Serial write failed: ${error.message}. Reconnect Arduino to resume.`); } })
+    this.writing = writer.write(new TextEncoder().encode(message))
+      .then(() => { this.lastMessage = message; })
+      .catch(error => { this.onError(`Serial write failed: ${error.message}`); this.suspended = true; this.pending = null; })
       .finally(() => { writer.releaseLock(); this.writing = null; });
   }
-  hold() {
-    this.suspended = true;
-    const angles = this.getAngles();
-    if (this.writing) this.rebaseAfterWrite = [...angles];
-    this.protocol?.rebase(angles);
-  }
-  resume() {
-    if (this.faulted) return;
-    if (this.suspended) {
-      const angles = this.getAngles();
-      if (this.writing) this.rebaseAfterWrite = [...angles];
-      this.protocol?.rebase(angles);
-    }
-    this.suspended = false;
-  }
+
+  hold() { this.suspended = true; this.pending = null; }
+  resume() { this.suspended = false; }
+
   async disconnect() {
     const port = this.port;
     this.port = null;
-    this.ready = false;
-    this.generation++;
-    this.protocol = null;
+    this.pending = null;
     try {
       await this.reader?.cancel();
       await this.reading;
       await this.writing;
       await port?.close();
     } catch (error) { this.onError(`Could not close serial cleanly: ${error.message}`); }
-    finally { this.onTraffic({ state: 'disconnected', count: this.sentCount }); this.onStatus(false, false); }
+    finally { this.onStatus(false, false); }
   }
 }

@@ -4,7 +4,7 @@ import { createLiquidGlass } from './liquid-glass.js';
 import { createFullscreen } from './fullscreen.js';
 import { createPanels } from './panels.js';
 import { createTheme } from './theme.js';
-import { createRig, JOINTS } from './arm/rig.js';
+import { createRig } from './arm/rig.js';
 import { Movement } from './movement.js';
 import { disposeObject, loadModels } from './arm/models.js';
 import { createViewport } from './viewport.js';
@@ -21,13 +21,14 @@ let ready = false;
 let loading = false;
 let disposed = false;
 let source = 'manual';
+let controlRevision = 0;
 let viewport;
 const events = new AbortController();
 const ui = createUI({
   onSelect: selectJoint,
   onJoint: moveJoint,
   onAction: action,
-  onSlot: index => { motion.select(index); movement.hold(); serial.hold(); ui.motion(motion); },
+  onSlot: index => { motion.select(index); movement.hold(); ui.motion(motion); },
   onView: name => viewport?.fit(name),
 });
 const reportError = message => ui.activity(message, true);
@@ -39,22 +40,13 @@ let storage;
 try { storage = window.localStorage; }
 catch { reportError('Browser storage is unavailable. Recordings will last for this session.'); }
 const motion = new MotionLibrary({ getAngles: rig.getAngles, applyAngles, storage, onError: reportError });
-let serialFormat = 'letters';
-try { if (storage?.getItem('budx-serial-format') === 'positions') serialFormat = 'positions'; } catch { /* Use the supplied sketch's format when storage is unavailable. */ }
 const serial = new SerialConnection({
-  format: serialFormat,
   getAngles: rig.getAngles,
+  onAngles: applyAngles,
+  onOrbit: (dx, dy) => viewport?.orbit(dx, dy, 0, 1),
   onStatus: ui.serial,
-  onTraffic: status => {
-    if (status.state === 'ready') {
-      stop();
-      ui.activity('Arduino ready. Move a control to start.');
-    }
-    ui.serialTraffic(status);
-  },
-  onError: message => { stop(); reportError(message); },
+  onError: reportError,
 });
-ui.serialFormat(serial.format);
 const tracker = new HandTracking({
   video: element('camera-video'),
   canvas: element('camera-overlay'),
@@ -62,11 +54,8 @@ const tracker = new HandTracking({
   onAngles: applyAngles,
   onState: state => {
     ui.camera(state);
-    if (state === 'detecting' && source === 'hand') { movement.hold(); serial.hold(); }
-  },
-  onControlChange: enabled => {
-    ui.handControl(enabled);
-    if (!enabled && source === 'hand') { movement.hold(); serial.hold(); setSource('manual'); }
+    if ((state === 'off' || state === 'detecting') && source === 'hand') movement.hold();
+    if (state === 'off' && source === 'hand') setSource('manual');
   },
   onError: reportError,
 });
@@ -86,14 +75,14 @@ function setSource(next) {
 
 function pauseHand() {
   tracker.setControl(false);
+  element('hand-control').checked = false;
 }
 
 function applyAngles(angles, input = 'manual') {
   if (!ready || disposed) return;
-  if (input === 'hand' && (!tracker.enabled || !tracker.control)) return;
-  if (motion.mode === 'playing' && input === 'hand') return;
-  if (!Array.isArray(angles) || angles.length !== 4 || !angles.every(Number.isFinite)) return;
+  if (motion.mode === 'playing' && (input === 'hand' || input === 'serial')) return;
   if (input !== 'sequence' && motion.mode === 'playing') motion.stop();
+  if (input === 'manual' || input === 'gamepad') controlRevision++;
   if (input !== 'hand') pauseHand();
   serial.resume();
   setSource(input);
@@ -101,7 +90,7 @@ function applyAngles(angles, input = 'manual') {
 }
 
 function moveJoint(index, value) {
-  const angles = source === 'hand' || source === 'sequence' ? rig.getAngles() : movement.getTarget();
+  const angles = movement.getTarget();
   angles[index] = value;
   applyAngles(angles);
 }
@@ -113,6 +102,7 @@ function selectJoint(index) {
 }
 
 function stop() {
+  controlRevision++;
   motion.stop();
   movement.hold();
   pauseHand();
@@ -132,36 +122,36 @@ async function action(name) {
   if (name === 'home') {
     motion.stop();
     applyAngles([0, 0, 0, 0]);
-    ui.activity('Moving arm home; claw half open.');
+    ui.activity('Moving arm home.');
   } else if (name === 'fit') viewport.fit();
   else if (name === 'record') {
     motion.record();
     if (source === 'sequence') setSource('manual');
     ui.activity(motion.mode === 'recording' ? 'Recording your movements. Press Save recording to keep them.' : 'Recording saved to this slot.');
   } else if (name === 'play' || PRESETS[name]) {
-    if (name === 'play' && motion.mode === 'playing') { stop(); return; }
+    controlRevision++;
     pauseHand();
     serial.resume();
     motion.play(PRESETS[name] ? name : undefined);
+    if (motion.mode !== 'playing') movement.hold();
     setSource(motion.mode === 'playing' ? 'sequence' : 'manual');
     ui.activity(motion.mode === 'playing' ? `Playing ${PRESETS[name] ? name : `slot ${motion.activeSlot + 1}`}.` : 'Playback stopped.');
   } else if (name === 'serial') await serial.toggle();
   else if (name === 'camera') {
+    const revision = controlRevision;
     await tracker.toggle();
-    if (tracker.enabled && element('face-blur').checked) await tracker.setBlur(true);
+    if (tracker.enabled && revision === controlRevision) {
+      motion.stop();
+      tracker.setControl(true);
+      element('hand-control').checked = true;
+      setSource('hand');
+      if (element('face-blur').checked) await tracker.setBlur(true);
+    }
   }
   ui.motion(motion);
 }
 
 ui.listen('loop', 'change', event => { motion.loop = event.target.checked; });
-ui.listen('serial-format', 'change', event => {
-  if (serial.setFormat(event.target.value)) {
-    stop();
-    try { storage?.setItem('budx-serial-format', serial.format); } catch { /* The selected format remains usable for this session. */ }
-    ui.activity('Command format changed. Connect Arduino, then move a control.');
-  }
-  ui.serialFormat(serial.format);
-});
 ui.listen('speed', 'change', event => { motion.speed = Number(event.target.value); });
 ui.listen('show-grid', 'change', event => viewport?.setGrid(event.target.checked));
 ui.listen('smoothing', 'change', event => { tracker.smoothing = event.target.checked; });
@@ -169,10 +159,9 @@ ui.listen('face-blur', 'change', async event => { await tracker.setBlur(event.ta
 ui.listen('hand-control', 'change', event => {
   motion.stop();
   movement.hold();
-  serial.hold();
   tracker.setControl(event.target.checked);
+  serial.resume();
   setSource(tracker.control ? 'hand' : 'manual');
-  ui.handControl(tracker.control);
 });
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') { stop(); return; }
@@ -181,8 +170,7 @@ document.addEventListener('keydown', event => {
   if (event.key.toLowerCase() === 'f') viewport?.fit();
   if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
     event.preventDefault();
-    const step = selected === 3 ? (JOINTS[3].max - JOINTS[3].min) / 100 : Math.PI / 180;
-    moveJoint(selected, movement.getTarget()[selected] + (event.key === 'ArrowLeft' ? -1 : 1) * step * (event.shiftKey ? 5 : 1));
+    moveJoint(selected, movement.getTarget()[selected] + (event.key === 'ArrowLeft' ? -1 : 1) * Math.PI / 180 * (event.shiftKey ? 5 : 1));
   }
 }, { signal: events.signal });
 document.addEventListener('visibilitychange', () => {

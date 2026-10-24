@@ -10,15 +10,14 @@ async page => {
   check(await page.getByRole('slider').count() === 4, 'All four joint sliders must be present.');
 
   async function angle(name, value) {
-    const input = page.getByRole('spinbutton', { name: name === 'Claw' ? 'Claw opening' : `${name} angle`, exact: true });
+    const input = page.getByRole('spinbutton', { name: `${name} angle`, exact: true });
     await input.fill(String(value));
     await input.press('Tab');
-    await page.waitForFunction(({ name, value }) => Math.abs(Number(document.querySelector(`input[aria-label="${name} position"]`).value) - value) < .15, { name, value });
   }
   await angle('Shoulder', -45);
   await angle('Elbow', 60);
   await angle('Turntable', 30);
-  await angle('Claw', 70.8);
+  await angle('Wrist', 25);
   await page.getByRole('button', { name: 'Fit view', exact: true }).click();
   check(await page.getByRole('slider', { name: 'Shoulder position' }).inputValue() === '-45', 'Angle fields must update the rig and sliders.');
   await page.screenshot({ path: 'output/playwright/desktop.png' });
@@ -38,7 +37,6 @@ async page => {
   await page.getByRole('checkbox', { name: 'Loop', exact: true }).uncheck();
   await page.getByRole('button', { name: 'Play', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('motion-state').textContent === 'Idle');
-  await page.waitForFunction(() => Math.abs(Number(document.querySelector('input[aria-label="Elbow position"]').value) - 20) < .15);
   check(await page.getByRole('slider', { name: 'Elbow position' }).inputValue() === '20', 'One-shot playback must finish on its last pose.');
 
   await page.getByRole('button', { name: 'Wave', exact: true }).click();
@@ -56,11 +54,9 @@ async page => {
     check(await button.getAttribute('aria-pressed') === 'true', `${view} camera must become active.`);
   }
   await page.locator('#home-arm').click();
-  await page.waitForFunction(() => [...document.querySelectorAll('.joint-control input[type="range"]')].every((input, index) => Math.abs(Number(input.value) - [0, 0, 0, 50][index]) < .15));
   await page.locator('#arm-canvas').focus();
   await page.keyboard.press('2');
   await page.keyboard.press('ArrowLeft');
-  await page.waitForFunction(() => document.querySelector('input[aria-label="Shoulder position"]').value === '-1');
   check(await page.getByRole('slider', { name: 'Shoulder position' }).inputValue() === '-1', 'Keyboard must select and move a joint.');
   await page.getByRole('checkbox', { name: 'Grid', exact: true }).uncheck();
   await page.getByRole('checkbox', { name: 'Grid', exact: true }).check();
@@ -103,12 +99,9 @@ async page => {
   });
   await cameraPage.goto(origin);
   await cameraPage.locator('#viewport[data-ready="true"]').waitFor();
-  if (await cameraPage.locator('#toggle-inputs').getAttribute('aria-expanded') === 'false') await cameraPage.locator('#toggle-inputs').click();
   await cameraPage.getByRole('button', { name: 'Enable camera', exact: true }).click();
   await cameraPage.getByRole('button', { name: 'Disable camera', exact: true }).waitFor();
-  check(!await cameraPage.getByRole('checkbox', { name: 'Move arm with hand' }).isChecked(), 'Enabling camera must remain preview only.');
-  await cameraPage.getByRole('checkbox', { name: 'Move arm with hand' }).check();
-  if (await cameraPage.locator('#toggle-joints').getAttribute('aria-expanded') === 'false') await cameraPage.locator('#toggle-joints').click();
+  check(await cameraPage.getByRole('checkbox', { name: 'Move arm with hand' }).isChecked(), 'Enabling camera must activate hand control.');
   await cameraPage.getByRole('spinbutton', { name: 'Shoulder angle' }).fill('-20');
   await cameraPage.getByRole('spinbutton', { name: 'Shoulder angle' }).press('Tab');
   check(!await cameraPage.getByRole('checkbox', { name: 'Move arm with hand' }).isChecked(), 'Manual input must release hand control.');

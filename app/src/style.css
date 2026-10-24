@@ -62,8 +62,6 @@ h1, h2 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.2px; }
 .status-pill.ready::before { background: #9bc5ae; }
 .status-pill.error::before { background: var(--red); }
 .device-icon { width: 20px; height: 20px; flex-shrink: 0; }
-.serial-format { display: grid; gap: 7px; margin-top: 12px; color: var(--muted); font-size: 11px; }
-.serial-format select { width: 100%; min-height: 32px; }
 .viewer-expanded { overflow: hidden; }
 .viewport:is(:fullscreen, :-webkit-full-screen, .expanded) { --scene-left: 0px; --scene-right: 0px; position: fixed; inset: 0; z-index: 100; width: 100vw; height: 100dvh; background: var(--page); }
 .viewport::backdrop { background: var(--page); }

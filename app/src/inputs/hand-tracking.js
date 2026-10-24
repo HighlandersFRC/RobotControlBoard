@@ -40,8 +40,8 @@ function fingerCurl(a, b, c) {
 }
 
 export class HandTracking {
-  constructor({ video, canvas, getAngles, onAngles, onState, onError, onControlChange = () => {} }) {
-    Object.assign(this, { video, canvas, getAngles, onAngles, onState, onError, onControlChange });
+  constructor({ video, canvas, getAngles, onAngles, onState, onError }) {
+    Object.assign(this, { video, canvas, getAngles, onAngles, onState, onError });
     this.context = canvas.getContext('2d');
     this.enabled = false;
     this.busy = false;
@@ -54,11 +54,10 @@ export class HandTracking {
     this.request = 0;
     this.frameTask = null;
     this.generation = 0;
-    this.stopping = null;
   }
 
   async toggle() {
-    if (this.busy || this.stopping) return;
+    if (this.busy) return;
     if (this.enabled) { await this.stop(); return; }
     this.busy = true;
     const generation = ++this.generation;
@@ -72,21 +71,16 @@ export class HandTracking {
       checkStartup();
       this.hands = new window.Hands({ locateFile: file => `${cdn('hands', HANDS_VERSION)}${file}` });
       this.hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: .7, minTrackingConfidence: .6 });
-      this.hands.onResults(results => { if (generation === this.generation) this.onHands(results); });
+      this.hands.onResults(results => this.onHands(results));
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 400 }, facingMode: 'user' }, audio: false });
       if (generation !== this.generation) stream.getTracks().forEach(track => track.stop());
       checkStartup();
       this.stream = stream;
-      for (const track of stream.getVideoTracks()) track.addEventListener('ended', () => {
-        if (generation !== this.generation || this.stream !== stream) return;
-        void this.stop();
-        this.onError('The camera disconnected. Reconnect it and enable the camera again.');
-      }, { once: true });
       this.video.srcObject = this.stream;
       await this.video.play();
       checkStartup();
-      this.canvas.width = this.video.videoWidth || 640;
-      this.canvas.height = this.video.videoHeight || 400;
+      this.canvas.width = this.video.videoWidth;
+      this.canvas.height = this.video.videoHeight;
       this.canvas.parentElement.style.aspectRatio = `${this.canvas.width} / ${this.canvas.height}`;
       this.enabled = true;
       this.smoothed = [...this.getAngles()];
@@ -105,21 +99,19 @@ export class HandTracking {
     this.control = !!enabled && this.enabled;
     this.smoothed = [...this.getAngles()];
     this.lastPoseTime = performance.now();
-    this.onControlChange(this.control);
   }
 
   async setBlur(enabled) {
-    const generation = this.generation;
     this.blur = enabled;
     if (!enabled) { this.faceBox = null; return; }
     if (!this.enabled || this.face) return;
     try {
       await loadScript(`${cdn('face_detection', FACE_VERSION)}face_detection.js`, 'FaceDetection');
-      if (generation !== this.generation || !this.enabled || !this.blur || this.face) return;
+      if (!this.enabled || !this.blur || this.face) return;
       this.face = new window.FaceDetection({ locateFile: file => `${cdn('face_detection', FACE_VERSION)}${file}` });
       this.face.setOptions({ model: 'short', minDetectionConfidence: .5 });
-      this.face.onResults(results => { if (generation === this.generation) this.faceBox = results.detections?.[0]?.boundingBox ?? null; });
-    } catch (error) { if (generation === this.generation) { this.blur = false; this.onError(error.message); } }
+      this.face.onResults(results => { this.faceBox = results.detections?.[0]?.boundingBox ?? null; });
+    } catch (error) { this.blur = false; this.onError(error.message); }
   }
 
   schedule() {
@@ -132,15 +124,12 @@ export class HandTracking {
   async processFrame() {
     if (!this.enabled || this.video.readyState < 2 || this.video.currentTime === this.lastFrame) return;
     this.lastFrame = this.video.currentTime;
-    const hands = this.hands, face = this.face;
     try {
-      if (this.blur && face) await face.send({ image: this.video });
-      if (!this.enabled || hands !== this.hands) return;
-      await hands.send({ image: this.video });
+      if (this.blur && this.face) await this.face.send({ image: this.video });
+      await this.hands.send({ image: this.video });
     } catch (error) {
       if (!this.enabled) return;
-      this.enabled = false;
-      this.setControl(false);
+      this.enabled = this.control = false;
       this.releaseCamera();
       this.onState('off');
       this.onError(`Hand tracking stopped: ${error.message}`);
@@ -168,7 +157,7 @@ export class HandTracking {
       ctx.restore();
     }
     const landmarks = results.multiHandLandmarks?.[0];
-    if (!landmarks || landmarks.length < 21 || !landmarks.every(point => Number.isFinite(point.x) && Number.isFinite(point.y))) { this.onState('detecting'); this.lastPoseTime = performance.now(); return; }
+    if (!landmarks) { this.onState('detecting'); this.lastPoseTime = performance.now(); return; }
     this.onState('tracking');
     const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
     ctx.strokeStyle = '#72bce3';
@@ -183,11 +172,11 @@ export class HandTracking {
     const x = palm.reduce((sum, point) => sum + point.x, 0) / palm.length;
     const y = palm.reduce((sum, point) => sum + point.y, 0) / palm.length;
     const tilt = Math.atan2(landmarks[9].x - landmarks[0].x, landmarks[0].y - landmarks[9].y);
-    const targets = [jointTarget(0, x), jointTarget(1, 1 - y), jointTarget(2, .5 + tilt / Math.PI), jointTarget(3, 1 - fingerCurl(landmarks[5], landmarks[6], landmarks[7]))];
+    const targets = [jointTarget(0, x), jointTarget(1, 1 - y), jointTarget(2, .5 + tilt / Math.PI), jointTarget(3, fingerCurl(landmarks[5], landmarks[6], landmarks[7]))];
     const now = performance.now();
     const delta = Math.min(.1, (now - this.lastPoseTime) / 1000);
     this.lastPoseTime = now;
-    const amount = this.smoothing ? 1 - Math.exp(-delta * 3) : 1;
+    const amount = this.smoothing ? 1 - Math.exp(-delta * 7) : 1;
     this.smoothed = this.smoothed.map((angle, index) => angle + (targets[index] - angle) * amount);
     this.onAngles(this.smoothed, 'hand');
   }
@@ -199,23 +188,16 @@ export class HandTracking {
   }
 
   async stop() {
-    if (this.stopping) return this.stopping;
     this.generation++;
-    this.enabled = false;
-    this.setControl(false);
+    this.enabled = this.control = false;
     cancelAnimationFrame(this.request);
     this.releaseCamera();
-    this.onState('stopping');
+    await this.frameTask;
     const resources = [this.hands, this.face];
     this.hands = this.face = null;
-    this.stopping = (async () => {
-      await this.frameTask;
-      await Promise.allSettled(resources.filter(Boolean).map(resource => resource.close()));
-      this.faceBox = null;
-      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      this.onState('off');
-    })();
-    try { await this.stopping; }
-    finally { this.stopping = null; }
+    await Promise.allSettled(resources.filter(Boolean).map(resource => resource.close()));
+    this.faceBox = null;
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.onState('off');
   }
 }

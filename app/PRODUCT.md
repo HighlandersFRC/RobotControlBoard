@@ -12,7 +12,7 @@ The owner uses BUDX to pose, record, and control a personal physical robot arm. 
 
 ## Product Purpose
 
-Move three arm joints and a replacement claw, inspect the pose in 3D, and save and replay movements.
+Move a four-axis arm, inspect its pose in 3D, and save and replay movements.
 
 ## Operating Context
 
@@ -24,8 +24,7 @@ The existing browser application supports direct model dragging, sliders, keyboa
 - Keep Stop and Home available while users hide or show the control panels.
 - Fullscreen must also work in embedded browsers through a page-filling fallback.
 - Camera and serial access require the browser's normal device permissions.
-- Use the existing single-letter Arduino protocol on channels 0, 1, 2, and 4; leave the former wrist on channel 3 alone. The sketch has no position feedback or hardware emergency stop.
-- Bound movement from every app input, including playback, and make camera control an explicit opt-in.
+- The position-only Arduino protocol does not provide a hardware emergency stop.
 - Physical device verification remains separate from browser simulation tests.
 
 ## Brand Commitments
@@ -41,5 +40,5 @@ The repository contains the original CAD exports under public/models/, the contr
 - Give the arm and its movement the most space.
 - Keep controls familiar and reveal secondary tools when needed.
 - Preserve input ownership, cancellation, and joint limits when changing the interface.
-- Let claw position dragging coordinate the arm's joints, while retaining independent claw-opening control.
+- Let wrist position dragging coordinate the arm's joints, while retaining individual joint controls.
 - Respect system accessibility preferences and local appearance settings.
