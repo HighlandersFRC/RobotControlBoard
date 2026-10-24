@@ -1,7 +1,12 @@
 import { JOINTS, clampAngle } from '../arm/rig.js';
 import { JOINT_SPEEDS } from '../movement.js';
 
-const SHOULDER_STEP_INTERVAL = (JOINTS[1].max - JOINTS[1].min) / JOINT_SPEEDS[1] / 180 * 1000;
+// Hardware calibration: the operator confirmed that commands 70–110 cover
+// the shoulder's full physical travel, with its direction reversed.
+const SHOULDER_MIN = 70;
+const SHOULDER_MAX = 110;
+const SHOULDER_SPAN = SHOULDER_MAX - SHOULDER_MIN;
+const SHOULDER_STEP_INTERVAL = (JOINTS[1].max - JOINTS[1].min) / JOINT_SPEEDS[1] / SHOULDER_SPAN * 1000;
 const shoulderValue = message => Number(/(?:^|,)S1:(\d+)/.exec(message)[1]);
 
 export function parseSerialLine(line, angles) {
@@ -18,7 +23,8 @@ export function parseSerialLine(line, angles) {
     if (key.startsWith('P')) {
       const index = Number(key[1]);
       const joint = JOINTS[index];
-      next[index] = clampAngle(joint.min + Math.min(180, Math.max(0, value)) / 180 * (joint.max - joint.min), index);
+      const amount = index === 1 ? (SHOULDER_MAX - value) / SHOULDER_SPAN : value / 180;
+      next[index] = clampAngle(joint.min + Math.min(1, Math.max(0, amount)) * (joint.max - joint.min), index);
       changed = true;
     } else if (key === 'DX') dx = Math.max(-1000, Math.min(1000, value)) * .001;
     else dy = Math.max(-1000, Math.min(1000, value)) * .001;
@@ -30,7 +36,9 @@ export function encodeAngles(angles) {
   return JOINTS.map((joint, index) => {
     const angle = clampAngle(angles[index], index);
     if (angle === null) throw new TypeError('Serial angles must be finite.');
-    return `S${index}:${Math.round((angle - joint.min) / (joint.max - joint.min) * 180)}`;
+    const amount = (angle - joint.min) / (joint.max - joint.min);
+    const position = index === 1 ? SHOULDER_MAX - amount * SHOULDER_SPAN : amount * 180;
+    return `S${index}:${Math.round(position)}`;
   }).join(',') + '\n';
 }
 
