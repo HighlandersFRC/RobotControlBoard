@@ -1,4 +1,8 @@
 import { JOINTS, clampAngle } from '../arm/rig.js';
+import { JOINT_SPEEDS } from '../movement.js';
+
+const SHOULDER_STEP_INTERVAL = (JOINTS[1].max - JOINTS[1].min) / JOINT_SPEEDS[1] / 180 * 1000;
+const shoulderValue = message => Number(/(?:^|,)S1:(\d+)/.exec(message)[1]);
 
 export function parseSerialLine(line, angles) {
   if (typeof line !== 'string' || line.length > 256) return null;
@@ -31,8 +35,8 @@ export function encodeAngles(angles) {
 }
 
 export class SerialConnection {
-  constructor({ getAngles, onAngles, onOrbit, onStatus, onError, serial = navigator.serial }) {
-    Object.assign(this, { getAngles, onAngles, onOrbit, onStatus, onError, serial });
+  constructor({ getAngles = () => [0, 0, 0, 0], onAngles, onOrbit, onStatus, onError, serial = navigator.serial, clock = () => performance.now() }) {
+    Object.assign(this, { getAngles, onAngles, onOrbit, onStatus, onError, serial, clock });
     this.port = null;
     this.busy = false;
     this.pending = null;
@@ -40,6 +44,8 @@ export class SerialConnection {
     this.lastWrite = -Infinity;
     this.lastMessage = '';
     this.suspended = false;
+    this.shoulderTarget = null;
+    this.lastShoulderWrite = -Infinity;
   }
 
   async toggle() {
@@ -56,6 +62,8 @@ export class SerialConnection {
         catch (error) { this.port = null; throw error; }
         this.port = port;
         this.lastMessage = '';
+        this.shoulderTarget = shoulderValue(encodeAngles(this.getAngles()));
+        this.lastShoulderWrite = -Infinity;
         this.reading = this.read(port);
       }
     } catch (error) {
@@ -85,7 +93,7 @@ export class SerialConnection {
           if (this.suspended) continue;
           const message = parseSerialLine(line, this.getAngles());
           if (!message) continue;
-          if (message.angles && performance.now() - this.lastWrite > 500) this.onAngles(message.angles, 'serial');
+          if (message.angles && !this.writing && !this.pending && this.clock() - this.lastWrite > 500) this.onAngles(message.angles, 'serial');
           if (message.dx || message.dy) this.onOrbit(message.dx, message.dy);
         }
       }
@@ -103,17 +111,29 @@ export class SerialConnection {
   queue(angles) {
     if (!this.port || this.suspended) return;
     const message = encodeAngles(angles);
-    this.pending = message === this.lastMessage ? null : message;
+    this.shoulderTarget ??= shoulderValue(encodeAngles(this.getAngles()));
+    this.pending = message === this.lastMessage && !this.writing ? null : message;
   }
 
   tick(now) {
     if (!this.port?.writable || !this.pending || this.writing || this.suspended || now - this.lastWrite < 50) return;
-    const message = this.pending;
-    this.pending = null;
+    const requested = this.pending;
+    const desired = shoulderValue(requested);
+    const previous = this.shoulderTarget ?? desired;
+    // USB backpressure can skip many rendered poses. Bound the command that
+    // actually goes to the shoulder, not just the on-screen animation.
+    const shoulder = previous + (now - this.lastShoulderWrite >= SHOULDER_STEP_INTERVAL ? Math.max(-1, Math.min(1, desired - previous)) : 0);
+    const message = requested.replace(/S1:\d+/, `S1:${shoulder}`);
+    this.pending = message === requested ? null : requested;
+    if (message === this.lastMessage) return;
     const writer = this.port.writable.getWriter();
     this.lastWrite = now;
     this.writing = writer.write(new TextEncoder().encode(message))
-      .then(() => { this.lastMessage = message; })
+      .then(() => {
+        this.lastMessage = message;
+        this.shoulderTarget = shoulder;
+        if (shoulder !== previous) this.lastShoulderWrite = Math.max(now, this.clock());
+      })
       .catch(error => { this.onError(`Serial write failed: ${error.message}`); this.suspended = true; this.pending = null; })
       .finally(() => { writer.releaseLock(); this.writing = null; });
   }
@@ -131,6 +151,6 @@ export class SerialConnection {
       await this.writing;
       await port?.close();
     } catch (error) { this.onError(`Could not close serial cleanly: ${error.message}`); }
-    finally { this.onStatus(false, false); }
+    finally { this.shoulderTarget = null; this.lastShoulderWrite = -Infinity; this.onStatus(false, false); }
   }
 }

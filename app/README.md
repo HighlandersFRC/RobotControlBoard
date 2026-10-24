@@ -21,6 +21,8 @@ Open the localhost address printed by Vite. For a production build, run `npm run
 
 Movement is limited to 75° per second for the turntable and elbow, 8° per second for the shoulder, and 15° per second for the wrist. The shoulder ramps its speed up and down by at most 30°/s², braking early for gentler starts, stops, and reversals. These limits apply to sliders, keyboard, model dragging, controller, hand tracking, Home, and playback. Stop cancels any remaining movement target and shoulder ramp immediately. The original USB connection and serial message format are unchanged.
 
+The shoulder also has a limit at USB output: each `S1` target changes by at most one servo degree, spaced about 104 ms apart, using the last completed write. A stalled write cannot skip ahead to a distant on-screen pose or release a burst of shoulder commands. Other joints keep their existing update rate. Stop drops remaining shoulder steps; incoming position reports cannot replace an active or queued USB movement. The model remains a command preview and may run ahead while USB is delayed.
+
 | Input | Action |
 | --- | --- |
 | Joint slider or angle field | Set a joint angle |
