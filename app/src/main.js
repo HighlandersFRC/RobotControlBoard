@@ -42,6 +42,13 @@ const motion = new MotionLibrary({ getAngles: rig.getAngles, applyAngles, storag
 const serial = new SerialConnection({
   getAngles: rig.getAngles,
   onStatus: ui.serial,
+  onTraffic: status => {
+    if (status.state === 'ready') {
+      stop();
+      ui.activity('Arduino ready. Move a control to start.');
+    }
+    ui.serialTraffic(status);
+  },
   onError: message => { stop(); reportError(message); },
 });
 const tracker = new HandTracking({

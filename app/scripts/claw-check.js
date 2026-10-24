@@ -50,7 +50,14 @@ async page => {
     await target.waitForTimeout(250);
     check(still(preview, await state()), 'Camera preview alone must leave the arm still.');
     await target.locator('#connect-serial').click();
+    await target.getByText('Waiting for Arduino startup…', { exact: true }).waitFor();
+    check((await state()).writes.length === 0, 'No movement letters may be written while Arduino is starting.');
+    await target.getByRole('slider', { name: 'Turntable position', exact: true }).press('End');
     await target.getByRole('button', { name: 'Disconnect Arduino', exact: true }).waitFor();
+    check(await target.locator('#serial-output').textContent() === '0 commands sent · Move a control', 'The connection must display its command count.');
+    const connected = await state();
+    await target.waitForTimeout(250);
+    check(still(connected, await state()) && (await state()).writes.length === 0, 'Connecting must cancel model destinations made during startup and wait for fresh input.');
     check(await target.evaluate(() => window.__armTest.baudRate) === 115200, 'The original sketch baud rate must be preserved.');
     check((await state()).writes.length === 0, 'Connecting must not move the hardware.');
     const beforeClaw = await state();
@@ -61,6 +68,7 @@ async page => {
     check(afterClaw.angles.slice(0, 3).every((angle, index) => angle === beforeClaw.angles[index]), 'The Claw control must leave arm joints alone.');
     check(afterClaw.gap > beforeClaw.gap && afterClaw.rotation[1] === 0, 'Claw motion must open jaws, not rotate the old wrist.');
     check(afterClaw.writes.length > 0 && afterClaw.writes.every(write => write.letter === 'u'), 'Claw opening must send only the channel 4 increase letter.');
+    check(/commands sent · Claw: u/.test(await target.locator('#serial-output').textContent()), 'Serial status must show the claw command actually written.');
     await target.locator('#stop-motion').click();
     const stopped = await state();
     await target.waitForTimeout(250);

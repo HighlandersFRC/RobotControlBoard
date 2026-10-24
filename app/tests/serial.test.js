@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JOINTS } from '../src/arm/rig.js';
-import { LetterProtocol, LETTER_AXES, PULSES_PER_SECOND, SerialConnection } from '../src/inputs/serial.js';
+import { ARDUINO_STARTUP_MS, LetterProtocol, LETTER_AXES, PULSES_PER_SECOND, SerialConnection } from '../src/inputs/serial.js';
 
 async function fixture({ write } = {}) {
   const writes = [], errors = [];
@@ -17,7 +17,7 @@ async function fixture({ write } = {}) {
       };
     } },
   };
-  const connection = new SerialConnection({ serial: { requestPort: async () => port }, getAngles: () => [...angles], onError: error => errors.push(error) });
+  const connection = new SerialConnection({ serial: { requestPort: async () => port }, getAngles: () => [...angles], onError: error => errors.push(error), settle: async () => {} });
   await connection.toggle();
   return { connection, writes, errors, port, set(next) { angles = [...next]; connection.queue(next); }, async tick(now) { connection.tick(now); await connection.writing; } };
 }
@@ -153,7 +153,7 @@ test('Stop during asynchronous port opening stays in effect and connection does 
   let finishOpen, opened;
   const started = new Promise(resolve => { opened = resolve; });
   const port = { open: () => { opened(); return new Promise(resolve => { finishOpen = resolve; }); }, close: async () => {}, readable: new ReadableStream() };
-  const connection = new SerialConnection({ serial: { requestPort: async () => port } });
+  const connection = new SerialConnection({ serial: { requestPort: async () => port }, settle: async () => {} });
   const connecting = connection.toggle();
   await started;
   connection.hold();
@@ -162,4 +162,73 @@ test('Stop during asynchronous port opening stays in effect and connection does 
   assert.equal(connection.suspended, true);
   assert.deepEqual(connection.protocol.targets, [375, 375, 375, 375]);
   await connection.disconnect();
+});
+
+test('USB startup discards boot-time input and reports only completed letter writes', async () => {
+  let finishStartup, startupBegan;
+  const started = new Promise(resolve => { startupBegan = resolve; });
+  const writes = [], traffic = [];
+  let angles = [0, 0, 0, 0], boardReady = false;
+  const port = {
+    open: async () => {}, close: async () => {},
+    writable: new WritableStream({ write(bytes) {
+      assert.equal(boardReady, true, 'The bootloader must never receive a movement command.');
+      writes.push(new TextDecoder().decode(bytes));
+    } }),
+  };
+  const connection = new SerialConnection({
+    serial: { requestPort: async () => port }, getAngles: () => [...angles],
+    onTraffic: event => traffic.push(event),
+    settle: milliseconds => {
+      assert.equal(milliseconds, ARDUINO_STARTUP_MS);
+      startupBegan();
+      return new Promise(resolve => { finishStartup = () => { boardReady = true; resolve(); }; });
+    },
+  });
+  const connecting = connection.toggle();
+  await started;
+  angles = [1, 0, 0, 0];
+  connection.queue(angles);
+  connection.tick(0);
+  assert.equal(connection.ready, false);
+  assert.deepEqual(writes, []);
+  assert.deepEqual(traffic, [{ state: 'starting', count: 0 }]);
+  finishStartup();
+  await connecting;
+  connection.tick(3000);
+  assert.deepEqual(writes, [], 'Connecting must not replay input made during startup.');
+  angles = [1, 0, 0, 1];
+  connection.queue(angles);
+  connection.tick(4000);
+  await connection.writing;
+  assert.deepEqual(writes, ['u']);
+  assert.deepEqual(traffic.at(-1), { state: 'sent', count: 1, letter: 'u', joint: 'Claw' });
+  await connection.disconnect();
+  assert.equal(connection.ready, false);
+  assert.equal(traffic.at(-1).state, 'disconnected');
+});
+
+test('disconnecting or stopping during Arduino startup cannot arm serial movement', async () => {
+  for (const cancel of ['disconnect', 'hold']) {
+    let finishStartup, startupBegan;
+    const started = new Promise(resolve => { startupBegan = resolve; });
+    const writes = [];
+    const port = { open: async () => {}, close: async () => {}, writable: new WritableStream({ write(bytes) { writes.push(bytes); } }) };
+    const connection = new SerialConnection({
+      serial: { requestPort: async () => port },
+      settle: () => { startupBegan(); return new Promise(resolve => { finishStartup = resolve; }); },
+    });
+    const connecting = connection.toggle();
+    await started;
+    await connection[cancel]();
+    finishStartup();
+    await connecting;
+    connection.queue([1, 1, 1, 1]);
+    connection.tick(10000);
+    await connection.writing;
+    assert.deepEqual(writes, []);
+    if (cancel === 'disconnect') assert.equal(connection.port, null);
+    else assert.equal(connection.suspended, true);
+    await connection.disconnect();
+  }
 });

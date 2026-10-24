@@ -93,6 +93,11 @@ export function createUI({ onSelect, onJoint, onAction, onSlot, onView }) {
       element('connect-serial').textContent = busy ? 'Connecting…' : connected ? 'Disconnect Arduino' : 'Connect Arduino';
       element('connect-serial').disabled = busy;
     },
+    serialTraffic({ state, count, joint, letter }) {
+      const output = element('serial-output');
+      output.hidden = state === 'disconnected';
+      output.textContent = state === 'starting' ? 'Waiting for Arduino startup…' : state === 'ready' ? '0 commands sent · Move a control' : `${count} commands sent · ${joint}: ${letter}`;
+    },
     camera(state) {
       if (cameraState === state) return;
       cameraState = state;

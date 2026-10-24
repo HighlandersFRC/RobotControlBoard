@@ -2,6 +2,7 @@ import { JOINTS } from '../arm/rig.js';
 
 export const SERVO_MIN = 150, SERVO_MAX = 600, SERVO_CENTER = 375;
 export const PULSES_PER_SECOND = 30;
+export const ARDUINO_STARTUP_MS = 2000;
 export const LETTER_AXES = Object.freeze([
   { channel: 0, decrease: 'a', increase: 'd', step: 20 },
   { channel: 1, decrease: 's', increase: 'w', step: 3 },
@@ -52,8 +53,8 @@ export class LetterProtocol {
 }
 
 export class SerialConnection {
-  constructor({ getAngles = () => [0, 0, 0, 0], onStatus = () => {}, onError = () => {}, serial = globalThis.navigator?.serial }) {
-    Object.assign(this, { getAngles, onStatus, onError, serial });
+  constructor({ getAngles = () => [0, 0, 0, 0], onStatus = () => {}, onError = () => {}, onTraffic = () => {}, serial = globalThis.navigator?.serial, settle = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)) }) {
+    Object.assign(this, { getAngles, onStatus, onError, onTraffic, serial, settle });
     this.port = null;
     this.busy = false;
     this.writing = null;
@@ -61,6 +62,8 @@ export class SerialConnection {
     this.suspended = false;
     this.generation = 0;
     this.faulted = false;
+    this.ready = false;
+    this.sentCount = 0;
   }
   async toggle() {
     if (this.busy) return;
@@ -75,13 +78,24 @@ export class SerialConnection {
         await port.open({ baudRate: 115200 });
         this.port = port;
         this.generation++;
+        this.ready = false;
+        this.sentCount = 0;
+        this.onTraffic({ state: 'starting', count: 0 });
+        // Opening USB serial can reset the board. Do not count commands as
+        // delivered while its bootloader is still running, or replay input
+        // made before the board was ready.
+        await this.settle(ARDUINO_STARTUP_MS);
+        if (this.port !== port) return;
         this.protocol = new LetterProtocol(this.getAngles());
         this.rebaseAfterWrite = null;
         this.faulted = false;
         this.lastWrite = -Infinity;
+        this.ready = true;
+        this.onTraffic({ state: 'ready', count: 0 });
         if (port.readable) this.reading = this.read(port);
       }
     } catch (error) {
+      if (this.port && !this.ready) await this.disconnect();
       if (error.name !== 'NotFoundError') this.onError(error.message || 'Could not connect to the serial port.');
     } finally { this.busy = false; this.onStatus(!!this.port, false); }
   }
@@ -100,9 +114,9 @@ export class SerialConnection {
       if (this.port === port && !this.busy) void this.disconnect();
     }
   }
-  queue(angles) { if (this.port && !this.suspended) this.protocol.setTarget(angles); }
+  queue(angles) { if (this.ready && this.port && !this.suspended) this.protocol.setTarget(angles); }
   tick(now) {
-    if (!Number.isFinite(now) || !this.port?.writable || this.writing || this.suspended || this.faulted || now - this.lastWrite < 100) return;
+    if (!this.ready || !Number.isFinite(now) || !this.port?.writable || this.writing || this.suspended || this.faulted || now - this.lastWrite < 100) return;
     const command = this.protocol.next(now);
     if (!command) return;
     const protocol = this.protocol, generation = this.generation;
@@ -119,6 +133,7 @@ export class SerialConnection {
       .then(written => {
         if (!written || generation !== this.generation) return;
         protocol.sent(command, now);
+        this.onTraffic({ state: 'sent', count: ++this.sentCount, letter: command.letter, joint: JOINTS[command.index].name });
         if (this.rebaseAfterWrite) {
           protocol.rebase(this.rebaseAfterWrite);
           this.rebaseAfterWrite = null;
@@ -146,6 +161,7 @@ export class SerialConnection {
   async disconnect() {
     const port = this.port;
     this.port = null;
+    this.ready = false;
     this.generation++;
     this.protocol = null;
     try {
@@ -154,6 +170,6 @@ export class SerialConnection {
       await this.writing;
       await port?.close();
     } catch (error) { this.onError(`Could not close serial cleanly: ${error.message}`); }
-    finally { this.onStatus(false, false); }
+    finally { this.onTraffic({ state: 'disconnected', count: this.sentCount }); this.onStatus(false, false); }
   }
 }
