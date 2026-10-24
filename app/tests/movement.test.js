@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRig, JOINTS } from '../src/arm/rig.js';
 import { Movement, JOINT_SPEEDS } from '../src/movement.js';
 
-test('all inputs move turntable and elbow at 45 degrees/sec, shoulder at 3, and wrist at 15', () => {
+test('all inputs use faster turntable/elbow speeds and ramp the shoulder up to 8 degrees/sec', () => {
   for (const source of ['manual', 'gamepad', 'hand', 'sequence']) {
     const rig = createRig(), movement = new Movement(rig);
     for (let frame = 0; frame < 60; frame++) {
@@ -13,18 +13,19 @@ test('all inputs move turntable and elbow at 45 degrees/sec, shoulder at 3, and 
       rig.getAngles().forEach((angle, index) => assert.ok(angle - before[index] <= JOINT_SPEEDS[index] / 60 + 1e-9));
     }
     const degrees = rig.getAngles().map(angle => angle * 180 / Math.PI);
-    degrees.forEach((angle, index) => assert.ok(Math.abs(angle - [45, 3, 45, 15][index]) < 1e-8));
+    const expected = [75, 8 - 8 ** 2 / (2 * 30), 75, 15];
+    degrees.forEach((angle, index) => assert.ok(Math.abs(angle - expected[index]) < 1e-8));
   }
 });
 
-test('movement is refresh-rate independent and a delayed frame cannot jump to its target', () => {
+test('movement stays consistent across refresh rates and a delayed frame cannot jump to its target', () => {
   function simulate(fps) {
     const rig = createRig(), movement = new Movement(rig);
     movement.setTarget([1, 1, 1, 1]);
     for (let frame = 0; frame < fps; frame++) movement.tick(1 / fps);
     return rig.getAngles();
   }
-  simulate(30).forEach((angle, index) => assert.ok(Math.abs(angle - simulate(144)[index]) < 1e-9));
+  simulate(30).forEach((angle, index) => assert.ok(Math.abs(angle - simulate(144)[index]) < (index === 1 ? .0001 : 1e-9)));
   const rig = createRig(), movement = new Movement(rig);
   movement.setTarget([1, 1, 1, 1]);
   movement.tick(10);
@@ -43,6 +44,46 @@ test('Stop drops a pending destination, invalid targets are rejected, and small 
   assert.deepEqual(movement.getTarget(), held);
   const target = held.map(angle => angle + .001);
   movement.setTarget(target);
-  movement.tick(.02);
+  for (let frame = 0; frame < 100; frame++) {
+    movement.tick(.02);
+    assert.ok(rig.getAngles().every((angle, index) => angle >= held[index] - 1e-9 && angle <= target[index] + 1e-9));
+  }
   assert.deepEqual(rig.getAngles(), target);
+});
+
+test('shoulder accelerates gently, cruises faster, and eases into its target', () => {
+  const rig = createRig(), movement = new Movement(rig);
+  const toDegrees = angle => angle * 180 / Math.PI;
+  movement.setTarget([0, Math.PI / 18, 0, 0]);
+  const speeds = [];
+  for (let frame = 0; frame < 300; frame++) {
+    const before = rig.getAngles()[1];
+    movement.tick(1 / 120);
+    const after = rig.getAngles()[1];
+    speeds.push(toDegrees(after - before) * 120);
+    assert.ok(after >= before - 1e-9 && after <= Math.PI / 18 + 1e-9);
+  }
+  assert.ok(speeds[0] > 0 && speeds[0] < .2);
+  assert.ok(Math.max(...speeds) > 7.9 && Math.max(...speeds) <= 8 + 1e-8);
+  assert.ok(speeds.some((speed, frame) => frame > 120 && speed > 0 && speed < 2));
+  assert.ok(Math.abs(toDegrees(rig.getAngles()[1]) - 10) < 1e-8);
+});
+
+test('shoulder reversal stays within joint limits and Stop cancels its ramp immediately', () => {
+  const rig = createRig(), movement = new Movement(rig);
+  movement.setTarget([0, 1, 0, 0]);
+  for (let frame = 0; frame < 60; frame++) movement.tick(1 / 60);
+  movement.setTarget([0, -1, 0, 0]);
+  for (let frame = 0; frame < 120; frame++) {
+    const before = rig.getAngles()[1];
+    movement.tick(1 / 60);
+    const after = rig.getAngles()[1];
+    assert.ok(Math.abs(after - before) <= JOINT_SPEEDS[1] / 60 + 1e-9);
+    assert.ok(after >= JOINTS[1].min && after <= JOINTS[1].max);
+  }
+  assert.ok(rig.getAngles()[1] < 0);
+  movement.hold();
+  const held = rig.getAngles();
+  for (let frame = 0; frame < 120; frame++) movement.tick(1 / 60);
+  assert.deepEqual(rig.getAngles(), held);
 });

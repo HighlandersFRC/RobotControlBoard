@@ -19,7 +19,7 @@ Open the localhost address printed by Vite. For a production build, run `npm run
 
 ## Controls
 
-Movement is limited to 45° per second for the turntable and elbow, 3° per second for the shoulder, and 15° per second for the wrist. These limits apply to sliders, keyboard, model dragging, controller, hand tracking, Home, and playback. Stop cancels any remaining movement target. The original USB connection and serial message format are unchanged.
+Movement is limited to 75° per second for the turntable and elbow, 8° per second for the shoulder, and 15° per second for the wrist. The shoulder ramps its speed up and down by at most 30°/s², braking early for gentler starts, stops, and reversals. These limits apply to sliders, keyboard, model dragging, controller, hand tracking, Home, and playback. Stop cancels any remaining movement target and shoulder ramp immediately. The original USB connection and serial message format are unchanged.
 
 | Input | Action |
 | --- | --- |
