@@ -1,68 +1,39 @@
 # Highlanders 4499 Outreach Kit Robot Code
 
-Drive the outreach kit robot with a joystick in the PestoLink iPhone app.
-The robot shows up over Bluetooth as **robotikit**.
+PlatformIO firmware for the Highlanders 4499 outreach kit. Each robot has its own build environment under **Project Tasks**.
 
-This project is set up for the kit's **single-core ESP32-S0WD, with 4 MB flash**.
+## Open and upload
 
-## Get the code
+1. Open the cloned folder containing `platformio.ini` in VS Code.
+2. Open the PlatformIO sidebar and expand **Project Tasks**.
+3. Pick a robot below, then click **General → Upload**.
+4. Open that environment's **Monitor** at 115200 baud for status messages.
 
-1. Install [Git](https://git-scm.com/downloads), [VS Code](https://code.visualstudio.com/), and the [PlatformIO extension](https://platformio.org/install/ide?install=vscode).
-2. In VS Code, press **Ctrl+Shift+P** and choose **Git: Clone**.
-3. Paste `https://github.com/HighlandersFRC/RobotControlBoard.git`.
-4. Open the cloned folder containing `platformio.ini`.
+The first build downloads the ESP32 toolchain and can take several minutes. Keep `.pio/` between builds so later builds can reuse compiled files.
 
-## Upload
+## Robot programs
 
-1. Plug the ESP32 into your computer with a USB data cable.
-2. Open the PlatformIO sidebar (alien-head icon).
-3. Expand **Project Tasks → pesto_test → General** and click **Upload**.
-   This builds the code and uploads it. The first build can take several minutes.
-4. After it says **SUCCESS**, open **Monitor** for serial output at **115200 baud**.
+| Environment | Program | Behavior |
+| --- | --- | --- |
+| `front_loader` | `src/Front-Loader/FrontLoader.cpp` | PestoLink joystick drive as **robotikit**. Button 1 toggles the intake servo down/up; button 2 is unused. |
+| `balancing_robot` | `src/Balancing-Robot/BalancingRobot.cpp` | LSM6DS3 roll PID; connect to **BalanceBot** and press button 0 to arm/disarm. |
+| `butterfly` | `src/Butterfly-Kit/butterfly.cpp` | M1 runs continuously at 50% output. No PestoLink connection is used. |
+| `dragon` | `src/Dragon-Kit/dragon.cpp` | M1 and M2 run continuously at 50% output. No PestoLink connection is used. |
 
-If uploading gets stuck at `Connecting...`, hold **BOOT** until writing starts.
-There is one program in this repo, so the toolbar Upload button uses it too.
-For later edits, use Upload directly. Keep `.pio/` between builds; using **Clean**
-or deleting it forces the framework to compile again.
+The Butterfly and Dragon motors start automatically when the board is powered and keep running until power is removed. Raise the robot wheels before testing. Their example power is set near the top of each source file.
 
-## Drive
+For Front Loader, connect to **robotikit** in the PestoLink iPhone app and choose joystick axes 0 and 1. Centering the joystick stops the motors; they also stop if Bluetooth disconnects or controller data is stale. Press button 1 once to move the intake down; press it again to move it up. The servo starts in its up position and travels faster than the earlier version.
 
-1. Connect the motors to the board's **M1** and **M2** outputs and turn on the kit's motor supply.
-2. Open the PestoLink iPhone app, allow Bluetooth access, and connect to **robotikit**.
-3. Choose **Joystick (axes 0, 1)**. Up/down drives forward/backward; left/right steers.
+For Balancing Robot, SDA is GPIO 21 and SCL is GPIO 22. The complementary filter combines roll from the accelerometer and gyro. Check the roll and motor direction with wheels raised before trying to balance on the floor. The PID gains are starting values and may need tuning for the robot.
 
-Centering the joystick stops the motors. They also stop when Bluetooth disconnects
-or no controller packet arrives for 500 ms. USB power alone does not power the motors.
+## Shared motor pins
 
-Steering has a wider center deadband and a gentler response near the center to
-make straight driving easier. Full sideways input still gives full turning power.
-
-## Make changes
-
-The working joystick program is in [`src/main.cpp`](src/main.cpp). The settings at the top control
-pins, joystick deadband, speed limit, and motor direction. Set `MAX_DRIVE_POWER`
-to `0.5f` for half power, or change `INVERT_MOTOR_ONE` / `INVERT_MOTOR_TWO` if a motor
-turns the wrong way. Build and upload again after editing.
-
-If one motor is still faster, push straight forward and press button **0** while
-watching the Serial Monitor. It prints the requested power for M1 and M2, not RPM.
-If both commands match, lower the faster motor's `MOTOR_ONE_SCALE` or
-`MOTOR_TWO_SCALE` in small steps, such as `1.0f` to `0.95f`, and test again.
-Both scales start at `1.0f`; the software cannot measure wheel speed without sensors.
-
-The five kit folders under `src/` are placeholders for separate robot programs.
-`pesto_test` still builds only `src/main.cpp`.
-
-| Motor signal | GPIO |
-| --- | --- |
+| Signal | GPIO |
+| --- | ---: |
 | M1 PWM / direction | 18 / 19 |
 | M2 PWM / direction | 16 / 17 |
-| Shared driver enable | 23 |
+| Shared motor-driver enable | 23 |
+| Front Loader servo | 25 |
+| IMU SDA / SCL | 21 / 22 |
 
-`platformio.ini` selects the board and dependencies. `config/esp32.defaults` holds
-the single-core and Bluetooth settings. Keep both CMake files: this chip needs
-Arduino compiled with ESP-IDF, and the root file fixes a BLE header conflict.
-
-`lib/PestoLink-Receive` contains [PestoLink](https://github.com/AlfredoSystems/PestoLink-Receive)
-with a small task change for the single-core chip. Build files and downloaded
-dependencies stay in `.pio/` and are ignored by Git.
+`src/main.cpp` selects the source program using the active PlatformIO environment. The root and `src/` CMake files are required for this Arduino + ESP-IDF project.
