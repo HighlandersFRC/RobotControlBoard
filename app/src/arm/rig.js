@@ -5,7 +5,7 @@ export const JOINTS = [
   { name: 'Turntable', axis: 'y', min: radians(-180), max: radians(180) },
   { name: 'Shoulder', axis: 'z', min: radians(-90), max: radians(60) },
   { name: 'Elbow', axis: 'z', min: radians(-90), max: radians(90) },
-  { name: 'Claw', axis: null, min: radians(-60), max: radians(60), unit: '%' },
+  { name: 'Wrist', axis: 'y', min: radians(-60), max: radians(60) },
 ];
 
 // CAD exports use metres, Z up, and a shared assembly origin at the base top.
@@ -62,34 +62,20 @@ export function createRig() {
   tip.name = 'Tool center';
   tip.position.y = CAD.toolHeight;
   pivots[3].add(tip);
-  const clawJaws = [-1, 1].map(side => {
-    const jaw = new Group();
-    jaw.name = side < 0 ? 'Left claw jaw' : 'Right claw jaw';
-    pivots[3].add(jaw);
-    return jaw;
-  });
-  const values = JOINTS.map(() => 0);
-  function updateClaw() {
-    const opening = (values[3] - JOINTS[3].min) / (JOINTS[3].max - JOINTS[3].min);
-    clawJaws.forEach((jaw, index) => { jaw.position.x = (index === 0 ? -1 : 1) * (.14 + opening * .38); });
-  }
-  updateClaw();
   const listeners = new Set();
 
   const rig = {
-    root, pivots, mounts, tip, clawJaws,
-    getAngles: () => [...values],
+    root, pivots, mounts, tip,
+    getAngles: () => pivots.map((pivot, index) => pivot.rotation[JOINTS[index].axis]),
     setAngles(angles, source = 'manual') {
       let changed = false;
       pivots.forEach((pivot, index) => {
         const value = clampAngle(angles[index], index);
-        if (value === null || Math.abs(value - values[index]) < 1e-9) return;
-        values[index] = value;
-        if (JOINTS[index].axis) pivot.rotation[JOINTS[index].axis] = value;
+        if (value === null || Math.abs(value - pivot.rotation[JOINTS[index].axis]) < 1e-9) return;
+        pivot.rotation[JOINTS[index].axis] = value;
         changed = true;
       });
       if (changed) {
-        updateClaw();
         root.updateMatrixWorld(true);
         listeners.forEach(listener => listener(rig.getAngles(), source));
       }

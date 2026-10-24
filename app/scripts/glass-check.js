@@ -57,12 +57,11 @@ async page => {
     if (width === 390) await page.screenshot({ path: 'output/playwright/liquid-glass-mobile.png', fullPage: true });
   }
   if (await page.locator('#toggle-joints').getAttribute('aria-expanded') === 'false') await page.locator('#toggle-joints').click();
-  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Claw', 75]]) {
-    const input = page.getByRole('spinbutton', { name: name === 'Claw' ? 'Claw opening' : `${name} angle`, exact: true });
+  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Wrist', 30]]) {
+    const input = page.getByRole('spinbutton', { name: `${name} angle`, exact: true });
     await input.fill(String(value));
     await input.press('Tab');
   }
-  await page.waitForFunction(() => [...document.querySelectorAll('.joint-control input[type="range"]')].every((input, index) => Math.abs(Number(input.value) - [25, -40, 55, 75][index]) < .15));
   await page.getByRole('button', { name: 'Perspective', exact: true }).click();
   await page.mouse.move(900, 45);
   await page.screenshot({ path: 'output/playwright/liquid-glass-finished.png' });

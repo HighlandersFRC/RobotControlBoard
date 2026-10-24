@@ -4,7 +4,7 @@ import { solveTarget, targetError } from './kinematics.js';
 
 export function createToolManipulator({ scene, camera, canvas, rig, button, onMove, onSelect, onReach, onDrag }) {
   const target = new Object3D();
-  target.name = 'Claw position target';
+  target.name = 'Wrist position target';
   scene.add(target);
   const handles = new TransformControls(camera, canvas);
   handles.setMode('translate');

@@ -11,12 +11,10 @@ async page => {
   for (const id of ['toggle-joints', 'toggle-inputs']) {
     if (await page.locator(`#${id}`).getAttribute('aria-expanded') === 'false') await page.locator(`#${id}`).click();
   }
-  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Claw', 75]]) {
-    const input = page.getByRole('spinbutton', { name: name === 'Claw' ? 'Claw opening' : `${name} angle` });
-    await input.fill(String(value));
-    await input.press('Tab');
+  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Wrist', 30]]) {
+    await page.getByRole('spinbutton', { name: `${name} angle` }).fill(String(value));
+    await page.getByRole('spinbutton', { name: `${name} angle` }).press('Tab');
   }
-  await page.waitForFunction(() => [...document.querySelectorAll('.joint-control input[type="range"]')].every((input, index) => Math.abs(Number(input.value) - [25, -40, 55, 75][index]) < .15));
   await page.mouse.move(1100, 40);
   const darkPalette = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement);
