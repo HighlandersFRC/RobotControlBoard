@@ -39,7 +39,10 @@ let storage;
 try { storage = window.localStorage; }
 catch { reportError('Browser storage is unavailable. Recordings will last for this session.'); }
 const motion = new MotionLibrary({ getAngles: rig.getAngles, applyAngles, storage, onError: reportError });
+let serialFormat = 'letters';
+try { if (storage?.getItem('budx-serial-format') === 'positions') serialFormat = 'positions'; } catch { /* Use the supplied sketch's format when storage is unavailable. */ }
 const serial = new SerialConnection({
+  format: serialFormat,
   getAngles: rig.getAngles,
   onStatus: ui.serial,
   onTraffic: status => {
@@ -51,6 +54,7 @@ const serial = new SerialConnection({
   },
   onError: message => { stop(); reportError(message); },
 });
+ui.serialFormat(serial.format);
 const tracker = new HandTracking({
   video: element('camera-video'),
   canvas: element('camera-overlay'),
@@ -150,6 +154,14 @@ async function action(name) {
 }
 
 ui.listen('loop', 'change', event => { motion.loop = event.target.checked; });
+ui.listen('serial-format', 'change', event => {
+  if (serial.setFormat(event.target.value)) {
+    stop();
+    try { storage?.setItem('budx-serial-format', serial.format); } catch { /* The selected format remains usable for this session. */ }
+    ui.activity('Command format changed. Connect Arduino, then move a control.');
+  }
+  ui.serialFormat(serial.format);
+});
 ui.listen('speed', 'change', event => { motion.speed = Number(event.target.value); });
 ui.listen('show-grid', 'change', event => viewport?.setGrid(event.target.checked));
 ui.listen('smoothing', 'change', event => { tracker.smoothing = event.target.checked; });

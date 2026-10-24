@@ -52,9 +52,32 @@ export class LetterProtocol {
   }
 }
 
+// Compatibility with controllers that understand the previous app's S-lines.
+// Keep the replacement claw on channel 4, even in this format. One degree per
+// serial tick caps position changes at 10 servo degrees/second.
+export class PositionProtocol extends LetterProtocol {
+  setTarget(angles) {
+    if (!super.setTarget(angles)) return false;
+    this.targets = this.targets.map(pulse => SERVO_MIN + Math.round((pulse - SERVO_MIN) / 2.5) * 2.5);
+    return true;
+  }
+  next() {
+    const positions = this.positions.map((pulse, index) => pulse + Math.max(-2.5, Math.min(2.5, this.targets[index] - pulse)));
+    if (positions.every((pulse, index) => Math.abs(pulse - this.positions[index]) < 1e-7)) return null;
+    const message = positions.map((pulse, index) => `S${LETTER_AXES[index].channel}:${Math.round((pulse - SERVO_MIN) / 2.5)}`).join(',') + '\n';
+    return { message, positions };
+  }
+  sent(command, now) {
+    this.positions = [...command.positions];
+    this.lastWrites.fill(now);
+  }
+}
+
 export class SerialConnection {
-  constructor({ getAngles = () => [0, 0, 0, 0], onStatus = () => {}, onError = () => {}, onTraffic = () => {}, serial = globalThis.navigator?.serial, settle = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)) }) {
+  constructor({ getAngles = () => [0, 0, 0, 0], onStatus = () => {}, onError = () => {}, onTraffic = () => {}, serial = globalThis.navigator?.serial, format = 'letters', settle = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)) }) {
     Object.assign(this, { getAngles, onStatus, onError, onTraffic, serial, settle });
+    if (!['letters', 'positions'].includes(format)) throw new TypeError('Unknown Arduino command format.');
+    this.format = format;
     this.port = null;
     this.busy = false;
     this.writing = null;
@@ -64,6 +87,11 @@ export class SerialConnection {
     this.faulted = false;
     this.ready = false;
     this.sentCount = 0;
+  }
+  setFormat(format) {
+    if (this.busy || this.port || !['letters', 'positions'].includes(format)) return false;
+    this.format = format;
+    return true;
   }
   async toggle() {
     if (this.busy) return;
@@ -86,7 +114,7 @@ export class SerialConnection {
         // made before the board was ready.
         await this.settle(ARDUINO_STARTUP_MS);
         if (this.port !== port) return;
-        this.protocol = new LetterProtocol(this.getAngles());
+        this.protocol = new (this.format === 'positions' ? PositionProtocol : LetterProtocol)(this.getAngles());
         this.rebaseAfterWrite = null;
         this.faulted = false;
         this.lastWrite = -Infinity;
@@ -124,16 +152,16 @@ export class SerialConnection {
     try { writer = this.port.writable.getWriter(); }
     catch (error) { this.faulted = true; this.hold(); this.onError(`Serial write failed: ${error.message}. Reconnect Arduino to resume.`); return; }
     this.lastWrite = now;
-    // One letter per awaited write: no bursts, stale queues, newlines, or channel 3.
+    // One awaited write at a time. Neither format addresses channel 3.
     this.writing = Promise.resolve().then(async () => {
       if (this.suspended || generation !== this.generation) return false;
-      await writer.write(new TextEncoder().encode(command.letter));
+      await writer.write(new TextEncoder().encode(command.message ?? command.letter));
       return true;
     })
       .then(written => {
         if (!written || generation !== this.generation) return;
         protocol.sent(command, now);
-        this.onTraffic({ state: 'sent', count: ++this.sentCount, letter: command.letter, joint: JOINTS[command.index].name });
+        this.onTraffic({ state: 'sent', count: ++this.sentCount, ...(command.message ? { message: command.message.trim() } : { letter: command.letter, joint: JOINTS[command.index].name }) });
         if (this.rebaseAfterWrite) {
           protocol.rebase(this.rebaseAfterWrite);
           this.rebaseAfterWrite = null;

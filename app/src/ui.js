@@ -92,11 +92,17 @@ export function createUI({ onSelect, onJoint, onAction, onSlot, onView }) {
       element('serial-status').textContent = connected ? 'Connected · 115200 baud' : 'USB serial · 115200 baud';
       element('connect-serial').textContent = busy ? 'Connecting…' : connected ? 'Disconnect Arduino' : 'Connect Arduino';
       element('connect-serial').disabled = busy;
+      element('serial-format').disabled = connected || busy;
     },
-    serialTraffic({ state, count, joint, letter }) {
+    serialTraffic({ state, count, joint, letter, message }) {
       const output = element('serial-output');
       output.hidden = state === 'disconnected';
-      output.textContent = state === 'starting' ? 'Waiting for Arduino startup…' : state === 'ready' ? '0 commands sent · Move a control' : `${count} commands sent · ${joint}: ${letter}`;
+      output.textContent = state === 'starting' ? 'Waiting for Arduino startup…' : state === 'ready' ? '0 commands sent · Move a control' : `${count} commands sent · ${message ? 'Position targets' : `${joint}: ${letter}`}`;
+      output.title = `Counts browser writes, not confirmed hardware movement.${message ? ` Last sent: ${message}` : ' Small changes wait until they reach a servo step.'}`;
+    },
+    serialFormat(format) {
+      element('serial-format').value = format;
+      element('serial-format-note').textContent = format === 'positions' ? 'Position firmware · Claw uses S4' : 'Repo sketch · Channels 0, 1, 2, 4';
     },
     camera(state) {
       if (cameraState === state) return;

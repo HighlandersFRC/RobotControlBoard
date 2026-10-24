@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JOINTS } from '../src/arm/rig.js';
-import { ARDUINO_STARTUP_MS, LetterProtocol, LETTER_AXES, PULSES_PER_SECOND, SerialConnection } from '../src/inputs/serial.js';
+import { ARDUINO_STARTUP_MS, LetterProtocol, PositionProtocol, LETTER_AXES, PULSES_PER_SECOND, SerialConnection } from '../src/inputs/serial.js';
 
-async function fixture({ write } = {}) {
+async function fixture({ write, format = 'letters' } = {}) {
   const writes = [], errors = [];
   let angles = [0, 0, 0, 0], locked = false;
   const port = {
@@ -17,7 +17,7 @@ async function fixture({ write } = {}) {
       };
     } },
   };
-  const connection = new SerialConnection({ serial: { requestPort: async () => port }, getAngles: () => [...angles], onError: error => errors.push(error), settle: async () => {} });
+  const connection = new SerialConnection({ serial: { requestPort: async () => port }, getAngles: () => [...angles], onError: error => errors.push(error), format, settle: async () => {} });
   await connection.toggle();
   return { connection, writes, errors, port, set(next) { angles = [...next]; connection.queue(next); }, async tick(now) { connection.tick(now); await connection.writing; } };
 }
@@ -41,6 +41,65 @@ test('letter mapping matches the unchanged sketch, with the fourth control route
     protocol.setTarget(angles);
     assert.equal(protocol.next(2000).letter, LETTER_AXES[index].decrease);
   }
+});
+
+test('position compatibility sends paced S-lines on channels 0, 1, 2, 4 and keeps the connect pose still', async () => {
+  const f = await fixture({ format: 'positions' });
+  await f.tick(0);
+  assert.deepEqual(f.writes, []);
+  f.set(JOINTS.map(joint => joint.max));
+  let previous = [90, 90, 90, 90];
+  for (let time = 0; time <= 1000; time += 10) {
+    const length = f.writes.length;
+    await f.tick(time);
+    if (length === f.writes.length) continue;
+    const line = f.writes.at(-1);
+    assert.match(line, /^S0:\d+,S1:\d+,S2:\d+,S4:\d+\n$/);
+    const values = line.trim().split(',').map(field => Number(field.split(':')[1]));
+    assert.ok(values.every((value, index) => value >= previous[index] && value - previous[index] <= 1));
+    previous = values;
+  }
+  assert.equal(f.writes.length, 11);
+  assert.deepEqual(previous, [101, 101, 101, 101]);
+  f.connection.hold();
+  await f.tick(2000);
+  assert.equal(f.writes.length, 11, 'Stop must discard queued position targets.');
+  assert.deepEqual(f.errors, []);
+  await f.connection.disconnect();
+});
+
+test('position compatibility ignores invalid targets, quantizes without chatter, and supports bounds and reversal', () => {
+  const protocol = new PositionProtocol([0, 0, 0, 0]);
+  assert.equal(protocol.setTarget([NaN, 0, 0, 0]), false);
+  protocol.setTarget([0, 0, 0, .0001]);
+  assert.equal(protocol.next(0), null);
+  protocol.setTarget([1000, 1000, 1000, 1000]);
+  for (let time = 0; time < 20000; time += 100) {
+    const command = protocol.next(time);
+    if (command) protocol.sent(command, time);
+  }
+  assert.deepEqual(protocol.positions, [600, 600, 600, 600]);
+  assert.equal(protocol.next(20000), null);
+  protocol.setTarget([-1000, -1000, -1000, -1000]);
+  const command = protocol.next(20100);
+  assert.equal(command.message, 'S0:179,S1:179,S2:179,S4:179\n');
+  protocol.sent(command, 20100);
+  protocol.rebase([0, 0, 0, 0]);
+  assert.equal(protocol.next(20200), null);
+});
+
+test('command format can only change while disconnected, and defaults to the repo sketch', async () => {
+  const connection = new SerialConnection({});
+  assert.equal(connection.format, 'letters');
+  assert.equal(connection.setFormat('unknown'), false);
+  assert.equal(connection.setFormat('positions'), true);
+  connection.busy = true;
+  assert.equal(connection.setFormat('letters'), false);
+  connection.busy = false;
+  const f = await fixture();
+  assert.equal(f.connection.setFormat('positions'), false);
+  await f.connection.disconnect();
+  assert.equal(f.connection.setFormat('positions'), true);
 });
 
 test('connecting is motionless and claw writes contain only paced u/i letters', async () => {

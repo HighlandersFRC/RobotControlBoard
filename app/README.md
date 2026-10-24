@@ -54,9 +54,13 @@ Recordings last up to one minute. **Save recording**, changing slots, or stoppin
 | Elbow | 2 | `q` / `e` | 15 |
 | Claw | 4 | `i` / `u` | 15 |
 
-Channel 3 is left alone: the app never sends `j`, `l`, or the all-channel center command `c`. It no longer sends `S0…S3` lines, newlines, or numeric targets. The bridge sends one awaited letter at a time, at least 100 ms apart globally, with per-axis intervals based on the sketch's actual step sizes and a 30-pulse-per-second budget. It keeps the latest destination, gives all axes a turn, clamps estimated pulses to 150–600, and avoids oscillating between adjacent steps. A failed write suspends output until reconnection.
+Channel 3 is left alone: the app never sends `j`, `l`, `S3` targets, or the all-channel center command `c`. **Single letters (repo sketch)** is the default command format. In that mode, the bridge sends one awaited letter at a time, without newlines or numeric targets, at least 100 ms apart globally, with per-axis intervals based on the sketch's actual step sizes and a 30-pulse-per-second budget. It keeps the latest destination, gives all axes a turn, clamps estimated pulses to 150–600, and avoids oscillating between adjacent steps. A failed write suspends output until reconnection.
 
 After opening USB serial, the app waits two seconds for Arduino startup before enabling output. Input made during that wait is discarded so it cannot move the arm later. Once connected, the Arduino panel shows the count of completed browser writes and the most recent joint/letter. This confirms browser output, not receipt or physical movement: the sketch sends no acknowledgements. Changes below half a firmware step produce no letter until enough movement accumulates (about 8° turntable, 0.5° shoulder, 3° elbow, or 1.7% claw opening).
+
+If the previous app's sliders moved the physical arm but single letters do not, disconnect and select **Position lines (compatibility)** under **Command format**, then reconnect. This sends the previous app's newline-terminated `S<channel>:<0–180>` syntax, with the replacement claw routed to `S4` instead of the former wrist's `S3`. The supplied repo sketch does not parse this format; it is for controllers running position-command firmware. Such firmware must support `S4` to control the claw. The app cannot identify the running firmware from successful USB writes alone and never switches formats automatically.
+
+Position compatibility uses the current screen pose as a relative reference for servo positions of 90° on connection. It emits no target until fresh input, changes each servo target by at most 1° per write (at most 10°/second), and shares the existing slow model movement, startup wait, write serialization, Stop cancellation, and error handling. A message looks like `S0:90,S1:90,S2:90,S4:91` followed by a newline. The Arduino panel counts these writes and shows the latest raw line in the counter's tooltip. Change formats only while disconnected; the choice is remembered in this browser. The sketch remains unchanged.
 
 The sketch has no position feedback. Reset the Arduino to its sketch-defined center before connecting. The app assumes 375 pulses on each controlled servo and treats the current on-screen pose as a relative reference; connecting sends no movement or automatic centering. A full on-screen range corresponds to 450 pulse counts relative to that reference. Stop rebases the estimate to discard unsent steps. The model is a command preview, not a measured hardware pose. Diagnostic serial text is drained without changing the model or hand-control checkbox. Hardware limits and the sketch's coarse step sizes remain unchanged.
 
@@ -106,6 +110,7 @@ For the browser smoke check, start the dev server and run these commands in anot
 ```sh
 npx --yes --package @playwright/cli playwright-cli open http://localhost:5173 --headed
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/claw-check.js
+npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/serial-compatibility-check.js
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/browser-check.js
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/glass-check.js
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/viewer-check.js
