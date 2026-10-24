@@ -34,7 +34,7 @@ export class GamepadInput {
     } else {
       if (pressed(5)) { selected = (selected + 1) % 4; this.onSelect(selected); }
       if (pressed(4)) { selected = (selected + 3) % 4; this.onSelect(selected); }
-      if (axes[2]) { const next = [...angles]; next[selected] += axes[2] * delta * 1.4; this.onMove(next, 'gamepad'); }
+      if (axes[2]) { const next = [...angles]; next[selected] += axes[2] * delta * .22; this.onMove(next, 'gamepad'); }
       this.onOrbit(axes[0], axes[1], axes[3], delta);
       const actions = { 0: 'home', 3: 'fit', 2: 'play', 9: 'record', 12: 'Wave', 13: 'Sweep', 14: 'Salute' };
       for (const [index, action] of Object.entries(actions)) if (pressed(Number(index))) this.onAction(action);

@@ -32,16 +32,16 @@ export async function loadModels(rig, onProgress) {
       throw new Error('A model part could not be loaded. Check your connection and try again.');
     }
     results.forEach((result, index) => rig.mounts[index].add(result.value));
-    addWristTool(rig.pivots[3]);
+    addClawTool(rig);
     rig.root.updateMatrixWorld(true);
   } finally {
     decoder.dispose();
   }
 }
 
-function addWristTool(wrist) {
-  // The repo has four CAD parts but no wrist tool. A small flange makes the
-  // fourth axis visible; its bearing stays centered as the tool rolls.
+function addClawTool(rig) {
+  // A procedural two-jaw tool represents the replacement claw, independent of
+  // the supplied arm CAD. Opening the jaws does not rotate the old wrist axis.
   const steel = new MeshStandardMaterial();
   const dark = new MeshStandardMaterial();
   steel.userData.armFinish = 'tool';
@@ -50,10 +50,15 @@ function addWristTool(wrist) {
   bearing.position.y = .09;
   const flange = new Mesh(new CylinderGeometry(.57, .57, .13, 32), steel);
   flange.position.y = .245;
-  const tool = new Mesh(new BoxGeometry(.8, .24, .25), steel);
-  tool.position.y = .43;
-  wrist.add(bearing, flange, tool);
-  wrist.traverse(object => { if (object.isMesh) object.castShadow = object.receiveShadow = true; });
+  rig.pivots[3].add(bearing, flange);
+  rig.clawJaws.forEach((jaw, index) => {
+    const finger = new Mesh(new BoxGeometry(.15, .6, .3), steel);
+    finger.position.y = .56;
+    const pad = new Mesh(new BoxGeometry(.18, .15, .32), dark);
+    pad.position.set(index === 0 ? .07 : -.07, .79, 0);
+    jaw.add(finger, pad);
+  });
+  rig.pivots[3].traverse(object => { if (object.isMesh) object.castShadow = object.receiveShadow = true; });
 }
 
 export function applyModelTheme(root, style) {

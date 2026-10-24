@@ -2,7 +2,7 @@ async page => {
   const check = (condition, message) => { if (!condition) throw new Error(message); };
   const origin = new URL(page.url()).origin;
   const errors = [];
-  const expected = [-116.6, 60, 61.4, 0];
+  const expected = [-116.6, 60, 61.4, 50];
   const settle = target => target.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const pose = target => target.locator('.angle-field input').evaluateAll(inputs => inputs.map(input => Number(input.value)));
   const matches = values => values.every((value, index) => Math.abs(value - expected[index]) < .01);
@@ -20,7 +20,7 @@ async page => {
       check(matches(await pose(target)), 'The first view must show the reference pose.');
       check(await target.locator('#theme-toggle').getAttribute('aria-pressed') === 'false', 'A fresh browser starts in Dark mode.');
       check(await target.locator('#tool-handles').getAttribute('aria-pressed') === 'false', 'The opening view keeps arrows hidden.');
-      check(await target.locator('.joint-select').nth(3).getAttribute('aria-pressed') === 'true', 'Wrist starts selected.');
+      check(await target.locator('.joint-select').nth(3).getAttribute('aria-pressed') === 'true', 'Claw starts selected.');
       check(await target.locator('#toggle-joints').getAttribute('aria-expanded') === String(!mobile), 'Controls use the correct device default.');
       check(await target.locator('#toggle-inputs').getAttribute('aria-expanded') === 'false', 'Devices start collapsed.');
       await target.screenshot({ path: `output/playwright/opening-${mobile ? 'mobile' : 'desktop'}.png` });
@@ -31,7 +31,8 @@ async page => {
       await target.getByRole('button', { name: 'Fit view', exact: true }).click();
       check(matches(await pose(target)), 'Fitting the camera must preserve the pose.');
       await target.locator('#home-arm').click();
-      check((await pose(target)).every(value => value === 0), 'Home must retain the zero pose.');
+      await target.waitForFunction(() => [...document.querySelectorAll('.joint-control input[type="range"]')].every((input, index) => Math.abs(Number(input.value) - [0, 0, 0, 50][index]) < .15));
+      check((await pose(target)).every((value, index) => Math.abs(value - [0, 0, 0, 50][index]) < .15), 'Home must return arm joints to zero and the claw to half open.');
       await target.locator('#theme-toggle').click();
       await target.reload();
       await target.locator('#viewport[data-ready="true"]').waitFor();

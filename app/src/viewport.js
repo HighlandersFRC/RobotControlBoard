@@ -185,7 +185,7 @@ export function createViewport({ canvas, rig, onSelect, onMove, onReach, onViewC
     tooltip.hidden = index === null;
     if (index !== null) {
       const rect = container.getBoundingClientRect();
-      tooltip.textContent = index === 3 ? 'Drag wrist to move arm' : `${JOINTS[index].name} · ${THREE.MathUtils.radToDeg(rig.getAngles()[index]).toFixed(1)}°`;
+      tooltip.textContent = index === 3 ? 'Drag claw to move arm' : `${JOINTS[index].name} · ${THREE.MathUtils.radToDeg(rig.getAngles()[index]).toFixed(1)}°`;
       tooltip.style.left = `${Math.min(event.clientX - rect.left + 15, rect.width - 145)}px`;
       tooltip.style.top = `${Math.max(5, event.clientY - rect.top - 35)}px`;
     }

@@ -50,13 +50,17 @@ test('all input sources share joint limits and reject non-finite values', () => 
   }
 });
 
-test('rotating the wrist changes its tool orientation while keeping the bearing fixed', () => {
+test('the fourth control opens claw jaws without rotating the former wrist or moving the tool center', () => {
   const rig = createRig();
   const before = world(rig.pivots[3]);
   const toolCorner = world(rig.tip, [.4, 0, 0]);
+  const gap = rig.clawJaws[1].position.x - rig.clawJaws[0].position.x;
   rig.setAngles([0, 0, 0, 1]);
   close(before, world(rig.pivots[3]));
-  assert.ok(toolCorner.distanceTo(world(rig.tip, [.4, 0, 0])) > .3);
+  close(toolCorner, world(rig.tip, [.4, 0, 0]));
+  assert.ok(rig.clawJaws[1].position.x - rig.clawJaws[0].position.x > gap);
+  assert.equal(rig.pivots[3].rotation.y, 0);
+  assert.equal(JOINTS[3].name, 'Claw');
 });
 
 test('inverse kinematics reaches attainable poses and stays finite at singularities', () => {
@@ -74,7 +78,7 @@ test('inverse kinematics reaches attainable poses and stays finite at singularit
   }
 });
 
-test('wrist targets work on both sides of the shoulder without changing wrist roll', () => {
+test('tool targets work on both sides of the shoulder without changing claw opening', () => {
   const rig = createRig();
   for (const yaw of [-2.4, -.5, 0, 1.2, 2.7]) {
     for (const shoulder of [-1.2, -.4, .3, .9]) {
@@ -84,7 +88,7 @@ test('wrist targets work on both sides of the shoulder without changing wrist ro
         const target = rig.toolPosition();
         const solved = solveTarget(target, pose);
         assert.equal(solved[3], .45);
-        assert.ok(solved.every((value, index) => Math.abs(value - pose[index]) < .001), 'An unchanged wrist target must not flip an existing pose.');
+        assert.ok(solved.every((value, index) => Math.abs(value - pose[index]) < .001), 'An unchanged tool target must not flip an existing pose.');
         rig.setAngles(solved);
         close(rig.toolPosition(), target, .001);
       }
@@ -92,7 +96,7 @@ test('wrist targets work on both sides of the shoulder without changing wrist ro
   }
 });
 
-test('continuous wrist movement crosses the base axis without turntable or elbow jumps', () => {
+test('continuous tool movement crosses the base axis without turntable or elbow jumps', () => {
   const expected = createRig();
   const actual = createRig();
   actual.setAngles([.7, -.3, .12, -.4]);
@@ -101,13 +105,13 @@ test('continuous wrist movement crosses the base axis without turntable or elbow
     const target = expected.toolPosition();
     const previous = actual.getAngles();
     const next = solveTarget(target, previous, { continuous: true });
-    assert.ok(next.every((angle, index) => Math.abs(angle - previous[index]) < .06), 'A small wrist drag must keep a continuous joint solution.');
+    assert.ok(next.every((angle, index) => Math.abs(angle - previous[index]) < .06), 'A small tool drag must keep a continuous joint solution.');
     actual.setAngles(next);
     close(actual.toolPosition(), target, .002);
   }
 });
 
-test('wrist dragging holds the turntable limit instead of wrapping through a full turn', () => {
+test('tool dragging holds the turntable limit instead of wrapping through a full turn', () => {
   const rig = createRig();
   rig.setAngles([-Math.PI + .005, -.7, .4, .2]);
   const target = rig.toolPosition();

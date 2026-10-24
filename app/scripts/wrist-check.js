@@ -10,11 +10,12 @@ async page => {
 
   async function pose(targetPage) {
     if (await targetPage.locator('#toggle-joints').getAttribute('aria-expanded') === 'false') await targetPage.locator('#toggle-joints').click();
-    for (const [name, value] of [['Turntable', 25], ['Shoulder', -40], ['Elbow', 55], ['Wrist', 30]]) {
-      const input = targetPage.getByRole('spinbutton', { name: `${name} angle`, exact: true });
+    for (const [name, value] of [['Turntable', 25], ['Shoulder', -40], ['Elbow', 55], ['Claw', 75]]) {
+      const input = targetPage.getByRole('spinbutton', { name: name === 'Claw' ? 'Claw opening' : `${name} angle`, exact: true });
       await input.fill(String(value));
       await input.press('Tab');
     }
+    await targetPage.waitForFunction(() => [...document.querySelectorAll('.joint-control input[type="range"]')].every((input, index) => Math.abs(Number(input.value) - [25, -40, 55, 75][index]) < .15));
     if (targetPage.viewportSize().width <= 700) await targetPage.locator('#toggle-joints').click();
     await targetPage.getByRole('button', { name: 'Perspective', exact: true }).click();
     await targetPage.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));

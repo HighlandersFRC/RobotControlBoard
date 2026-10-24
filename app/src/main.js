@@ -4,7 +4,8 @@ import { createLiquidGlass } from './liquid-glass.js';
 import { createFullscreen } from './fullscreen.js';
 import { createPanels } from './panels.js';
 import { createTheme } from './theme.js';
-import { createRig } from './arm/rig.js';
+import { createRig, JOINTS } from './arm/rig.js';
+import { Movement } from './movement.js';
 import { disposeObject, loadModels } from './arm/models.js';
 import { createViewport } from './viewport.js';
 import { MotionLibrary, PRESETS } from './motion.js';
@@ -14,19 +15,19 @@ import { HandTracking } from './inputs/hand-tracking.js';
 import { createUI, element } from './ui.js';
 
 export const rig = createRig();
+const movement = new Movement(rig);
 let selected = 3;
 let ready = false;
 let loading = false;
 let disposed = false;
 let source = 'manual';
-let controlRevision = 0;
 let viewport;
 const events = new AbortController();
 const ui = createUI({
   onSelect: selectJoint,
   onJoint: moveJoint,
   onAction: action,
-  onSlot: index => { motion.select(index); ui.motion(motion); },
+  onSlot: index => { motion.select(index); movement.hold(); serial.hold(); ui.motion(motion); },
   onView: name => viewport?.fit(name),
 });
 const reportError = message => ui.activity(message, true);
@@ -40,10 +41,8 @@ catch { reportError('Browser storage is unavailable. Recordings will last for th
 const motion = new MotionLibrary({ getAngles: rig.getAngles, applyAngles, storage, onError: reportError });
 const serial = new SerialConnection({
   getAngles: rig.getAngles,
-  onAngles: applyAngles,
-  onOrbit: (dx, dy) => viewport?.orbit(dx, dy, 0, 1),
   onStatus: ui.serial,
-  onError: reportError,
+  onError: message => { stop(); reportError(message); },
 });
 const tracker = new HandTracking({
   video: element('camera-video'),
@@ -52,7 +51,11 @@ const tracker = new HandTracking({
   onAngles: applyAngles,
   onState: state => {
     ui.camera(state);
-    if (state === 'off' && source === 'hand') setSource('manual');
+    if (state === 'detecting' && source === 'hand') { movement.hold(); serial.hold(); }
+  },
+  onControlChange: enabled => {
+    ui.handControl(enabled);
+    if (!enabled && source === 'hand') { movement.hold(); serial.hold(); setSource('manual'); }
   },
   onError: reportError,
 });
@@ -72,22 +75,22 @@ function setSource(next) {
 
 function pauseHand() {
   tracker.setControl(false);
-  element('hand-control').checked = false;
 }
 
 function applyAngles(angles, input = 'manual') {
   if (!ready || disposed) return;
-  if (motion.mode === 'playing' && (input === 'hand' || input === 'serial')) return;
+  if (input === 'hand' && (!tracker.enabled || !tracker.control)) return;
+  if (motion.mode === 'playing' && input === 'hand') return;
+  if (!Array.isArray(angles) || angles.length !== 4 || !angles.every(Number.isFinite)) return;
   if (input !== 'sequence' && motion.mode === 'playing') motion.stop();
-  if (input === 'manual' || input === 'gamepad') controlRevision++;
   if (input !== 'hand') pauseHand();
   serial.resume();
   setSource(input);
-  rig.setAngles(angles, input);
+  movement.setTarget(angles, input);
 }
 
 function moveJoint(index, value) {
-  const angles = rig.getAngles();
+  const angles = source === 'hand' || source === 'sequence' ? rig.getAngles() : movement.getTarget();
   angles[index] = value;
   applyAngles(angles);
 }
@@ -99,8 +102,8 @@ function selectJoint(index) {
 }
 
 function stop() {
-  controlRevision++;
   motion.stop();
+  movement.hold();
   pauseHand();
   gamepad.hold();
   serial.hold();
@@ -118,14 +121,14 @@ async function action(name) {
   if (name === 'home') {
     motion.stop();
     applyAngles([0, 0, 0, 0]);
-    ui.activity('Arm returned to home.');
+    ui.activity('Moving arm home; claw half open.');
   } else if (name === 'fit') viewport.fit();
   else if (name === 'record') {
     motion.record();
     if (source === 'sequence') setSource('manual');
     ui.activity(motion.mode === 'recording' ? 'Recording your movements. Press Save recording to keep them.' : 'Recording saved to this slot.');
   } else if (name === 'play' || PRESETS[name]) {
-    controlRevision++;
+    if (name === 'play' && motion.mode === 'playing') { stop(); return; }
     pauseHand();
     serial.resume();
     motion.play(PRESETS[name] ? name : undefined);
@@ -133,15 +136,8 @@ async function action(name) {
     ui.activity(motion.mode === 'playing' ? `Playing ${PRESETS[name] ? name : `slot ${motion.activeSlot + 1}`}.` : 'Playback stopped.');
   } else if (name === 'serial') await serial.toggle();
   else if (name === 'camera') {
-    const revision = controlRevision;
     await tracker.toggle();
-    if (tracker.enabled && revision === controlRevision) {
-      motion.stop();
-      tracker.setControl(true);
-      element('hand-control').checked = true;
-      setSource('hand');
-      if (element('face-blur').checked) await tracker.setBlur(true);
-    }
+    if (tracker.enabled && element('face-blur').checked) await tracker.setBlur(true);
   }
   ui.motion(motion);
 }
@@ -153,9 +149,11 @@ ui.listen('smoothing', 'change', event => { tracker.smoothing = event.target.che
 ui.listen('face-blur', 'change', async event => { await tracker.setBlur(event.target.checked); event.target.checked = tracker.blur; });
 ui.listen('hand-control', 'change', event => {
   motion.stop();
+  movement.hold();
+  serial.hold();
   tracker.setControl(event.target.checked);
-  serial.resume();
   setSource(tracker.control ? 'hand' : 'manual');
+  ui.handControl(tracker.control);
 });
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') { stop(); return; }
@@ -164,7 +162,8 @@ document.addEventListener('keydown', event => {
   if (event.key.toLowerCase() === 'f') viewport?.fit();
   if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
     event.preventDefault();
-    moveJoint(selected, rig.getAngles()[selected] + (event.key === 'ArrowLeft' ? -1 : 1) * Math.PI / 180 * (event.shiftKey ? 5 : 1));
+    const step = selected === 3 ? (JOINTS[3].max - JOINTS[3].min) / 100 : Math.PI / 180;
+    moveJoint(selected, movement.getTarget()[selected] + (event.key === 'ArrowLeft' ? -1 : 1) * step * (event.shiftKey ? 5 : 1));
   }
 }, { signal: events.signal });
 document.addEventListener('visibilitychange', () => {
@@ -190,6 +189,7 @@ async function load() {
     viewport.setReady();
     // Use upright bounds for a stable opening scale, then show the folded pose.
     rig.setAngles([-116.6, 60, 61.4, 0].map(value => value * Math.PI / 180));
+    movement.hold();
     selectJoint(selected);
     ui.ready();
     ui.angles(rig.getAngles(), rig.toolPosition());
@@ -207,6 +207,7 @@ function tick(now) {
   if (!document.hidden && ready) {
     gamepad.tick(delta, rig.getAngles(), selected);
     motion.tick(delta);
+    movement.tick(delta);
     serial.tick(now);
     if (motion.mode === 'idle' && source === 'sequence') setSource('manual');
     ui.motion(motion);
