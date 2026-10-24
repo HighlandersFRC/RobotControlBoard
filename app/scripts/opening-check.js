@@ -20,7 +20,7 @@ async page => {
       check(matches(await pose(target)), 'The first view must show the reference pose.');
       check(await target.locator('#theme-toggle').getAttribute('aria-pressed') === 'false', 'A fresh browser starts in Dark mode.');
       check(await target.locator('#tool-handles').getAttribute('aria-pressed') === 'false', 'The opening view keeps arrows hidden.');
-      check(await target.locator('.joint-select').nth(3).getAttribute('aria-pressed') === 'true', 'Wrist starts selected.');
+      check(await target.locator('.joint-select').nth(3).getAttribute('aria-pressed') === 'true', 'Claw starts selected.');
       check(await target.locator('#toggle-joints').getAttribute('aria-expanded') === String(!mobile), 'Controls use the correct device default.');
       check(await target.locator('#toggle-inputs').getAttribute('aria-expanded') === 'false', 'Devices start collapsed.');
       await target.screenshot({ path: `output/playwright/opening-${mobile ? 'mobile' : 'desktop'}.png` });
@@ -30,8 +30,8 @@ async page => {
       check(handle.x >= 8 && handle.x + handle.width <= target.viewportSize().width - 8, 'The opening wrist must remain inside the screen.');
       await target.getByRole('button', { name: 'Fit view', exact: true }).click();
       check(matches(await pose(target)), 'Fitting the camera must preserve the pose.');
-      await target.locator('#home-arm').click();
-      check((await pose(target)).every(value => value === 0), 'Home must retain the zero pose.');
+      await target.locator('#start-control').click();
+      check(matches(await pose(target)), 'Start control must retain the aligned pose.');
       await target.locator('#theme-toggle').click();
       await target.reload();
       await target.locator('#viewport[data-ready="true"]').waitFor();
@@ -44,5 +44,5 @@ async page => {
     } finally { await context.close(); }
   }
   check(errors.length === 0, errors.join('; '));
-  return 'PASS: reference opening pose on desktop and touch mobile, wrist disclosure, independent Home and Fit, saved theme, reload, and narrow resizing.';
+  return 'PASS: reference opening pose on desktop and touch mobile, wrist disclosure, Start control without homing and independent Fit, saved theme, reload, and narrow resizing.';
 }

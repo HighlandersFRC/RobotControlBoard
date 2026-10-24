@@ -22,6 +22,8 @@ let loading = false;
 let disposed = false;
 let source = 'manual';
 let controlRevision = 0;
+let aligning = true;
+let alignmentBusy = false;
 let viewport;
 const events = new AbortController();
 const ui = createUI({
@@ -44,7 +46,10 @@ const serial = new SerialConnection({
   getAngles: rig.getAngles,
   onAngles: applyAngles,
   onOrbit: (dx, dy) => viewport?.orbit(dx, dy, 0, 1),
-  onStatus: ui.serial,
+  onStatus: (connected, busy) => {
+    if (aligning) serial.hold();
+    ui.serial(connected, busy);
+  },
   onError: reportError,
 });
 const tracker = new HandTracking({
@@ -80,6 +85,12 @@ function pauseHand() {
 
 function applyAngles(angles, input = 'manual') {
   if (!ready || disposed) return;
+  if (aligning) {
+    if (alignmentBusy || serial.busy || !['manual', 'gamepad'].includes(input)) return;
+    rig.setAngles(angles, 'alignment');
+    movement.hold();
+    return;
+  }
   if (motion.mode === 'playing' && (input === 'hand' || input === 'serial')) return;
   if (input !== 'sequence' && motion.mode === 'playing') motion.stop();
   if (input === 'manual' || input === 'gamepad') controlRevision++;
@@ -109,9 +120,34 @@ function stop() {
   gamepad.hold();
   serial.hold();
   viewport?.cancelDrag();
-  setSource('stopped');
+  setSource(aligning ? 'alignment' : 'stopped');
   ui.motion(motion);
-  ui.activity('Motion stopped. The arm is holding its current pose.');
+  ui.activity(aligning ? 'Align the model to the real arm, then start control.' : 'Motion stopped. The arm is holding its current pose.');
+}
+
+async function beginAlignment() {
+  aligning = true;
+  stop();
+  alignmentBusy = true;
+  ui.alignment(true, true);
+  // A write already accepted by USB cannot be recalled. Let it finish before
+  // the operator sets the new reference; discard all queued movement now.
+  await serial.writing;
+  if (disposed) return;
+  alignmentBusy = false;
+  ui.alignment(true);
+  ui.activity('Match the model to the real arm. Only the model moves during alignment.');
+}
+
+function startControl() {
+  if (!aligning || alignmentBusy || serial.busy || !serial.adoptPose(rig.getAngles())) return;
+  movement.hold();
+  gamepad.hold();
+  aligning = false;
+  ui.alignment(false);
+  setSource('manual');
+  ui.motion(motion);
+  ui.activity('Control ready at the aligned pose. Move a joint to begin.');
 }
 
 async function action(name) {
@@ -119,11 +155,10 @@ async function action(name) {
   if (name === 'retry') { await load(); return; }
   if (name === 'fullscreen') { await fullscreen.toggle(); return; }
   if (!ready) return;
-  if (name === 'home') {
-    motion.stop();
-    applyAngles([0, 0, 0, 0]);
-    ui.activity('Moving arm home.');
-  } else if (name === 'fit') viewport.fit();
+  if (name === 'align') { await beginAlignment(); return; }
+  if (name === 'start-control') { startControl(); return; }
+  if (aligning && (name === 'record' || name === 'play' || PRESETS[name])) return;
+  if (name === 'fit') viewport.fit();
   else if (name === 'record') {
     motion.record();
     if (source === 'sequence') setSource('manual');
@@ -136,11 +171,15 @@ async function action(name) {
     if (motion.mode !== 'playing') movement.hold();
     setSource(motion.mode === 'playing' ? 'sequence' : 'manual');
     ui.activity(motion.mode === 'playing' ? `Playing ${PRESETS[name] ? name : `slot ${motion.activeSlot + 1}`}.` : 'Playback stopped.');
-  } else if (name === 'serial') await serial.toggle();
+  } else if (name === 'serial') {
+    if (serial.busy || alignmentBusy) return;
+    await beginAlignment();
+    await serial.toggle();
+  }
   else if (name === 'camera') {
     const revision = controlRevision;
     await tracker.toggle();
-    if (tracker.enabled && revision === controlRevision) {
+    if (!aligning && tracker.enabled && revision === controlRevision) {
       motion.stop();
       tracker.setControl(true);
       element('hand-control').checked = true;
@@ -157,6 +196,7 @@ ui.listen('show-grid', 'change', event => viewport?.setGrid(event.target.checked
 ui.listen('smoothing', 'change', event => { tracker.smoothing = event.target.checked; });
 ui.listen('face-blur', 'change', async event => { await tracker.setBlur(event.target.checked); event.target.checked = tracker.blur; });
 ui.listen('hand-control', 'change', event => {
+  if (aligning) { pauseHand(); return; }
   motion.stop();
   movement.hold();
   tracker.setControl(event.target.checked);
@@ -182,7 +222,7 @@ document.addEventListener('visibilitychange', () => {
 
 rig.subscribe((angles, input) => {
   ui.angles(angles, rig.toolPosition());
-  if (input !== 'serial') serial.queue(angles);
+  if (!aligning && input !== 'serial') serial.queue(angles);
 });
 
 async function load() {
@@ -200,7 +240,7 @@ async function load() {
     selectJoint(selected);
     ui.ready();
     ui.angles(rig.getAngles(), rig.toolPosition());
-    ui.activity('Ready. Select a joint to start moving.');
+    await beginAlignment();
   } catch (error) { ui.loadError(error.message); reportError(error.message); }
   finally { loading = false; }
 }
@@ -215,7 +255,7 @@ function tick(now) {
     gamepad.tick(delta, rig.getAngles(), selected);
     motion.tick(delta);
     movement.tick(delta);
-    serial.tick(now);
+    if (!aligning) serial.tick(now);
     if (motion.mode === 'idle' && source === 'sequence') setSource('manual');
     ui.motion(motion);
   }
@@ -247,6 +287,7 @@ import.meta.hot?.dispose(dispose);
 selectJoint(selected);
 ui.angles(rig.getAngles(), rig.toolPosition());
 ui.motion(motion);
+ui.alignment(true);
 try {
   viewport = createViewport({
     canvas: element('arm-canvas'),

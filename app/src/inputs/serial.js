@@ -141,6 +141,16 @@ export class SerialConnection {
   hold() { this.suspended = true; this.pending = null; }
   resume() { this.suspended = false; }
 
+  // Adopt the operator's physical pose as our reference, without a USB write.
+  adoptPose(angles) {
+    if (this.writing || !Array.isArray(angles) || angles.length !== JOINTS.length || !angles.every(Number.isFinite)) return false;
+    this.hold();
+    this.lastMessage = encodeAngles(angles);
+    this.shoulderTarget = shoulderValue(this.lastMessage);
+    this.lastShoulderWrite = -Infinity;
+    return true;
+  }
+
   async disconnect() {
     const port = this.port;
     this.port = null;

@@ -2,7 +2,7 @@
 
 A browser workbench for the four-axis BUDX arm. Pose the model directly, record movements into three local slots, or connect a gamepad, Arduino, or camera.
 
-The opening view shows the folded arm at −116.6° turntable, 60° shoulder, 61.4° elbow, and 0° wrist, with the wider Perspective framing and wrist arrows hidden. Use Move arm handles to show the arrows. Home still returns every joint to zero; Fit view frames the current pose. Saved theme and panel preferences remain in effect.
+The opening view shows the folded arm at −116.6° turntable, 60° shoulder, 61.4° elbow, and 0° claw, with the wider Perspective framing and wrist arrows hidden. Use Move arm handles to show the arrows. The app opens in **Align model** mode; Fit view frames the current pose. Saved theme and panel preferences remain in effect.
 
 ## Run it
 
@@ -17,9 +17,19 @@ npm run dev
 
 Open the localhost address printed by Vite. For a production build, run `npm run build`, then `npm run preview`. Serve `dist/` over HTTPS when deploying. For a subdirectory, build with `npm run build -- --base=/your-path/`.
 
+## Align before controlling
+
+1. Connect the Arduino, then match the model to the real arm using the four sliders or angle fields. Alignment changes only the model; no movement commands are sent.
+2. Press **Start control**. This adopts the displayed pose without writing it to USB or moving toward zero.
+3. Move a slider, controller, or other input to begin control. Return the gamepad to neutral first.
+
+**Align model** (or gamepad A) stops app movement and lets you repeat setup at any time. Every reload and USB connection returns to alignment. Recording, presets, playback, and hand control stay paused until Start control; the camera can still preview. If a USB write is already in flight, alignment waits for it to finish before enabling adjustments. There is no Home action.
+
+This is a manual position reference, not sensor calibration: match the physical pose accurately. Opening USB may reset the board, and firmware can move servos during its own startup. Web alignment cannot prevent firmware startup movement. The Arduino sketch is unchanged.
+
 ## Controls
 
-Movement is limited to 75° per second for the turntable and elbow, 8° per second for the shoulder, and 15° per second for the wrist. The shoulder ramps its speed up and down by at most 30°/s², braking early for gentler starts, stops, and reversals. These limits apply to sliders, keyboard, model dragging, controller, hand tracking, Home, and playback. Stop cancels any remaining movement target and shoulder ramp immediately. The original USB connection and serial message format are unchanged.
+Movement is limited to 75° per second for the turntable and elbow, 8° per second for the shoulder, and 150° per second for the claw (10× the previous speed). The shoulder ramps its speed up and down by at most 30°/s², braking early for gentler starts, stops, and reversals. These limits apply to sliders, keyboard, model dragging, controller, hand tracking, and playback; alignment adjustments move only the model. Stop cancels any remaining movement target and shoulder ramp immediately. The original USB connection and serial message format are unchanged.
 
 The shoulder also has a limit at USB output: each `S1` target changes by at most one servo degree, spaced about 104 ms apart, using the last completed write. A stalled write cannot skip ahead to a distant on-screen pose or release a burst of shoulder commands. Other joints keep their existing update rate. Stop drops remaining shoulder steps; incoming position reports cannot replace an active or queued USB movement. The model remains a command preview and may run ahead while USB is delayed.
 
@@ -47,7 +57,7 @@ Recordings last up to one minute. **Save recording**, changing slots, or stoppin
 
 ## Devices
 
-**Gamepad:** Connect a standard gamepad and press a button. Left stick orbits; right stick X moves the selected joint and Y zooms. LB/RB select joints, A returns home, Y fits the camera, X plays/stops, Start records/saves, and D-pad up/down/left starts Wave/Sweep/Salute. Motion speed is independent of the display refresh rate.
+**Gamepad:** Connect a standard gamepad and press a button. Left stick orbits; right stick X moves the selected joint and Y zooms. LB/RB select joints, A enters model alignment, Y fits the camera, X plays/stops, Start records/saves, and D-pad up/down/left starts Wave/Sweep/Salute. Motion speed is independent of the display refresh rate.
 
 **Arduino:** Chrome or Edge on localhost/HTTPS is required for Web Serial. The baud rate and line protocol are unchanged:
 
@@ -65,11 +75,11 @@ Servo positions map 0–180 to each joint's allowed range. Output is coalesced t
 
 The four original glTF exports use a shared CAD origin, metres, and Z up. `src/arm/rig.js` converts that coordinate system once, defines the actual bearing heights, and offsets each mesh back around its own pivot. Shoulder and elbow rotations therefore keep their mating bearing centers coincident. The elbow socket export sits 2.032 mm above the upper arm's bearing center; the mount corrects that offset.
 
-The original wrist pivot had no mesh. A small procedural tool flange now makes wrist roll visible and remains attached to the forearm. It represents a tool mount, not an additional supplied CAD part. Joint ranges remain turntable ±180°, shoulder −90° to 60°, elbow ±90°, and wrist ±60°.
+The original wrist pivot had no mesh. A small procedural tool flange now makes wrist roll visible and remains attached to the forearm. It represents a tool mount, not an additional supplied CAD part. Joint ranges remain turntable ±180°, shoulder −90° to 60°, elbow ±90°, and the fourth control ±60°. The control is labeled Claw for the replacement hardware; the supplied CAD still displays the original tool mount.
 
 `src/arm/kinematics.js` uses these same link dimensions and joint limits for inverse kinematics. Targets outside the workspace produce the nearest pose found by the limited solver, with a visible message.
 
-The position arrows at the wrist move the tool along a world axis; the center handle and the wrist flange drag across the camera plane. The turntable, shoulder, and elbow follow automatically while wrist roll stays unchanged. The solver chooses a nearby joint solution on either side of the shoulder to avoid flips during small movements. Manual wrist movement takes over from playback and hand control. Stop or Escape ends the drag at the current pose. Use the Wrist slider for tool roll, and the Move arm handles button beside Fit view to hide or show the arrows. Keyboard movement from that button uses 3 mm steps, or 15 mm with Shift.
+The position arrows at the wrist move the tool along a world axis; the center handle and the wrist flange drag across the camera plane. The turntable, shoulder, and elbow follow automatically while wrist roll stays unchanged. The solver chooses a nearby joint solution on either side of the shoulder to avoid flips during small movements. Manual wrist movement takes over from playback and hand control. Stop or Escape ends the drag at the current pose. Use the Claw slider for the fourth hardware channel, and the Move arm handles button beside Fit view to hide or show the arrows. Keyboard movement from that button uses 3 mm steps, or 15 mm with Shift.
 
 ## Code and checks
 
@@ -79,7 +89,7 @@ The bottom-right transparency button switches to an opaque appearance and rememb
 
 `src/fullscreen.js` expands the model viewer using native fullscreen, with an in-page fallback when embedded browsers reject or stall the native request. Both modes provide an exit button, Escape handling, focus containment, and restored joint controls on exit. `src/snow.js` simulates up to 5,200 world-space flakes (3,000 on initial mobile load) in the same WebGL scene as the arm. Flakes have perspective sizing, depth occlusion, tumble, and local pointer-driven gusts. Soft forces divert flakes around the moving arm links, and a feathered screen-space fade keeps the model readable from every camera angle. Move or click through the scene to stir them. Snow pauses when the tab is hidden or Reduce Motion is enabled.
 
-There is no branded header. Controls and Devices toggle independent sidebars and remember desktop preferences; mobile opens with the scene and shows one panel at a time. Home and Stop remain visible. Joint rows show a name, angle, and slider; recording slots and playback settings live under Recording options. The camera preview and hand controls appear only while tracking is active. Panel dimensions are unchanged. The model changes between graphite and brushed aluminum with neutral lighting, and the ground grid uses four-unit cells (80 mm at the existing display scale).
+There is no branded header. Controls and Devices toggle independent sidebars and remember desktop preferences; mobile opens with the scene and shows one panel at a time. Start control (or Align model) and Stop remain visible. Joint rows show a name, angle, and slider; recording slots and playback settings live under Recording options. The camera preview and hand controls appear only while tracking is active. Panel dimensions are unchanged. The model changes between graphite and brushed aluminum with neutral lighting, and the ground grid uses four-unit cells (80 mm at the existing display scale).
 
 The sun/moon button at the bottom right switches between the original deep charcoal Dark mode and the brighter slate Light mode. The arm changes from graphite to muted brushed aluminum, and Light mode’s matte ground shares the arm’s base color with reduced glare and darker grid lines. The choice is saved locally and synchronized across open tabs. Palette tokens in `src/styles/liquid-glass.css` drive the controls, page, arm materials, WebGL floor, grid, fog, and snow; changing themes preserves the current pose. `src/theme.js` manages the toggle, storage fallback, and browser chrome color.
 
@@ -104,6 +114,7 @@ For the browser smoke check, start the dev server and run these commands in anot
 ```sh
 npx --yes --package @playwright/cli playwright-cli open http://localhost:5173 --headed
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/browser-check.js
+npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/alignment-check.js
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/glass-check.js
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/viewer-check.js
 npx --yes --package @playwright/cli playwright-cli run-code --filename=scripts/scene-check.js

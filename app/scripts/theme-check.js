@@ -11,7 +11,7 @@ async page => {
   for (const id of ['toggle-joints', 'toggle-inputs']) {
     if (await page.locator(`#${id}`).getAttribute('aria-expanded') === 'false') await page.locator(`#${id}`).click();
   }
-  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Wrist', 30]]) {
+  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Claw', 30]]) {
     await page.getByRole('spinbutton', { name: `${name} angle` }).fill(String(value));
     await page.getByRole('spinbutton', { name: `${name} angle` }).press('Tab');
   }

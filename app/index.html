@@ -15,6 +15,7 @@
         <aside id="joint-sidebar" class="joint-sidebar glass-surface" data-glass="premium" aria-label="Arm controls">
           <section class="control-section">
             <div class="section-heading"><h1>Joints</h1></div>
+            <p id="alignment-note" class="section-description">Match the model to the real arm. These adjustments move only the model. Then press Start control.</p>
             <div id="joint-controls"></div>
           </section>
           <section class="control-section motion-section" aria-labelledby="motion-heading">
@@ -37,7 +38,7 @@
           <button id="wrist-handle" class="wrist-handle" aria-label="Move entire arm" title="Drag to position the wrist. Arrow keys move; Page Up/Down adjusts depth." hidden disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg></button>
           <div class="scene-rail">
             <button id="toggle-joints" class="button panel-toggle" aria-controls="joint-sidebar" aria-expanded="true" title="Hide arm controls"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16m-3-9v2"/></svg><span>Controls</span></button>
-            <div class="arm-actions"><button id="home-arm" class="button" title="Return every joint to zero">Home</button><button id="stop-motion" class="button stop-button" title="Stop playback and all control inputs">Stop <kbd>Esc</kbd></button></div>
+            <div class="arm-actions"><button id="align-model" class="button" title="Adjust only the model to match the physical arm" hidden>Align model</button><button id="start-control" class="button primary" disabled>Start control</button><button id="stop-motion" class="button stop-button" title="Stop playback and all control inputs">Stop <kbd>Esc</kbd></button></div>
             <button id="toggle-inputs" class="button panel-toggle" aria-controls="input-sidebar" aria-expanded="true" title="Hide input devices"><span>Devices</span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16m3-9v2"/></svg></button>
           </div>
           <div class="viewport-toolbar">
@@ -53,7 +54,7 @@
           <section class="control-section">
             <div class="section-heading"><h2>Connections</h2><span class="connection-count" id="connection-count">0 active</span></div>
             <div class="device"><div class="device-heading"><svg class="device-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10c2 0 3 2 3.5 4l1 6c.5 3-2 4-4 1l-2-2h-7l-2 2c-2 3-4.5 2-4-1l1-6C4 9 5 7 7 7Z M6 11h4m-2-2v4m7-2h.01m3 2h.01"/></svg><strong>Gamepad</strong><span class="device-dot" id="gamepad-dot"></span></div><p id="gamepad-status">No controller connected</p></div>
-            <details class="device-help"><summary>Gamepad controls</summary><dl><dt>Left stick</dt><dd>Orbit</dd><dt>Right stick X / Y</dt><dd>Move / zoom</dd><dt>LB / RB</dt><dd>Choose joint</dd><dt>A / Y</dt><dd>Home / fit</dd><dt>X / Start</dt><dd>Play / record</dd><dt>D-pad ↑ ↓ ←</dt><dd>Presets</dd></dl></details>
+            <details class="device-help"><summary>Gamepad controls</summary><dl><dt>Left stick</dt><dd>Orbit</dd><dt>Right stick X / Y</dt><dd>Move / zoom</dd><dt>LB / RB</dt><dd>Choose joint</dd><dt>A / Y</dt><dd>Align model / fit</dd><dt>X / Start</dt><dd>Play / record</dd><dt>D-pad ↑ ↓ ←</dt><dd>Presets</dd></dl></details>
             <div class="device serial-device"><div class="device-heading"><svg class="device-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v12H7zm3 12v4m4-4v4M10 8v4m4-4v4"/></svg><strong>Arduino</strong><span class="device-dot" id="serial-dot"></span></div><p id="serial-status">USB serial · 115200 baud</p><button id="connect-serial" class="button full-width">Connect Arduino</button></div>
           </section>
           <section class="control-section camera-section">
@@ -64,7 +65,7 @@
             <label class="check-row"><input id="hand-control" type="checkbox" disabled /> Move arm with hand</label>
             <details class="sidebar-options"><summary>Tracking options</summary>
             <div class="camera-options"><label><input id="smoothing" type="checkbox" checked /> Smooth motion</label><label><input id="face-blur" type="checkbox" /> Blur face</label></div>
-            <dl class="tracking-help"><dt>Palm left / right</dt><dd>Turntable</dd><dt>Palm up / down</dt><dd>Shoulder</dd><dt>Wrist tilt</dt><dd>Elbow</dd><dt>Index curl</dt><dd>Wrist</dd></dl></details>
+            <dl class="tracking-help"><dt>Palm left / right</dt><dd>Turntable</dd><dt>Palm up / down</dt><dd>Shoulder</dd><dt>Wrist tilt</dt><dd>Elbow</dd><dt>Index curl</dt><dd>Claw</dd></dl></details>
             </div>
           </section>
           <details class="input-note"><summary id="input-source">Manual control</summary><p id="input-note">Sliders, keyboard, and model dragging.</p></details>

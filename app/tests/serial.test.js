@@ -37,6 +37,43 @@ test('serial protocol preserves the existing servo mapping and clamps hardware i
   assert.deepEqual(parsed.angles, [JOINTS[0].max, JOINTS[1].min, 0, JOINTS[3].max]);
 });
 
+test('adopting an aligned pose sends nothing and removes old shoulder catch-up', async t => {
+  const f = await serialFixture();
+  t.after(() => f.connection.disconnect());
+  f.set([0, 1, 0, 0]);
+  await f.tick(0);
+  assert.ok(f.connection.pending);
+  const pose = [.4, -.8, .2, -.3];
+  assert.equal(f.connection.adoptPose(pose), true);
+  assert.equal(f.connection.pending, null);
+  await f.tick(1000);
+  assert.equal(f.writes.length, 1, 'Align/Start does not transmit a position.');
+  f.connection.resume();
+  await f.tick(2000);
+  assert.equal(f.writes.length, 1, 'There is no old target to catch up to.');
+  const next = [...pose]; next[3] += .1;
+  f.set(next);
+  await f.tick(3000);
+  assert.equal(f.writes.at(-1).text, encodeAngles(next), 'First movement retains the aligned shoulder, not its old target.');
+});
+
+test('alignment cannot replace the baseline while a USB write is in flight', async t => {
+  let release;
+  const f = await serialFixture({ write: () => new Promise(resolve => { release = resolve; }) });
+  t.after(() => f.connection.disconnect());
+  for (const invalid of [null, [], [0, NaN, 0, 0]]) assert.equal(f.connection.adoptPose(invalid), false);
+  f.set([0, 1, 0, 0]);
+  f.connection.tick(0);
+  assert.equal(f.connection.adoptPose([0, -.5, 0, 0]), false);
+  f.connection.hold();
+  release();
+  await f.connection.writing;
+  assert.equal(f.connection.adoptPose([0, -.5, 0, 0]), true);
+  assert.equal(f.connection.lastMessage, encodeAngles([0, -.5, 0, 0]));
+  await f.tick(5000);
+  assert.equal(f.writes.length, 1);
+});
+
 test('serial input rejects negative indices, partial numbers, NaN, and unknown fields', () => {
   for (const line of ['P-1:90', 'P99:1', 'P0:20oops', 'P0:NaN', 'DX:Infinity', 'P0:1e900', '', 'x'.repeat(300)]) assert.equal(parseSerialLine(line, [0, 0, 0, 0]), null);
   assert.equal(parseSerialLine('DX:20,DY:-10', [0, 0, 0, 0]).dx, .02);

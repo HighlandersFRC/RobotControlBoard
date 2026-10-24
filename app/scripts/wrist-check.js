@@ -10,7 +10,7 @@ async page => {
 
   async function pose(targetPage) {
     if (await targetPage.locator('#toggle-joints').getAttribute('aria-expanded') === 'false') await targetPage.locator('#toggle-joints').click();
-    for (const [name, value] of [['Turntable', 25], ['Shoulder', -40], ['Elbow', 55], ['Wrist', 30]]) {
+    for (const [name, value] of [['Turntable', 25], ['Shoulder', -40], ['Elbow', 55], ['Claw', 30]]) {
       const input = targetPage.getByRole('spinbutton', { name: `${name} angle`, exact: true });
       await input.fill(String(value));
       await input.press('Tab');

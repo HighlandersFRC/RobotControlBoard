@@ -1,7 +1,7 @@
 import { JOINTS, clampAngle } from './arm/rig.js';
 
-// Turntable, shoulder, elbow, wrist: degrees per second, including playback.
-export const JOINT_SPEEDS = Object.freeze([75, 8, 75, 15].map(degrees => degrees * Math.PI / 180));
+// Turntable, shoulder, elbow, claw: degrees per second, including playback.
+export const JOINT_SPEEDS = Object.freeze([75, 8, 75, 150].map(degrees => degrees * Math.PI / 180));
 const SHOULDER_ACCELERATION = 30 * Math.PI / 180;
 
 export class Movement {

@@ -13,9 +13,21 @@ test('all inputs use faster turntable/elbow speeds and ramp the shoulder up to 8
       rig.getAngles().forEach((angle, index) => assert.ok(angle - before[index] <= JOINT_SPEEDS[index] / 60 + 1e-9));
     }
     const degrees = rig.getAngles().map(angle => angle * 180 / Math.PI);
-    const expected = [75, 8 - 8 ** 2 / (2 * 30), 75, 15];
+    const expected = [75, 8 - 8 ** 2 / (2 * 30), 75, 60];
     degrees.forEach((angle, index) => assert.ok(Math.abs(angle - expected[index]) < 1e-8));
   }
+});
+
+test('claw crosses its full range in 0.8 seconds at ten times its former speed', () => {
+  const rig = createRig();
+  rig.setAngles([0, 0, 0, JOINTS[3].min]);
+  const movement = new Movement(rig);
+  movement.setTarget([0, 0, 0, JOINTS[3].max]);
+  for (let frame = 0; frame < 24; frame++) movement.tick(1 / 60);
+  assert.ok(Math.abs(rig.getAngles()[3]) < 1e-8, 'Half range after 0.4 seconds.');
+  for (let frame = 0; frame < 24; frame++) movement.tick(1 / 60);
+  assert.ok(Math.abs(rig.getAngles()[3] - JOINTS[3].max) < 1e-8);
+  assert.deepEqual(rig.getAngles().slice(0, 3), [0, 0, 0]);
 });
 
 test('movement stays consistent across refresh rates and a delayed frame cannot jump to its target', () => {

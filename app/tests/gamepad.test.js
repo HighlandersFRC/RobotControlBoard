@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GamepadInput } from '../src/inputs/gamepad.js';
+import { createRig, JOINTS } from '../src/arm/rig.js';
+import { Movement } from '../src/movement.js';
 
 test('gamepad speed is independent of refresh rate and Stop requires neutral input', () => {
   const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
@@ -24,5 +26,22 @@ test('gamepad speed is independent of refresh rate and Stop requires neutral inp
     pad.axes[2] = .8;
     input.tick(.016, [0, 0, 0, 0], 0);
     assert.equal(moved, true);
+  } finally { Object.defineProperty(globalThis, 'navigator', original); }
+});
+
+test('controller drives the claw at 150 degrees/sec and A aligns instead of homing', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const pad = { index: 0, id: 'Test pad', connected: true, axes: [0, 0, 1, 0], buttons: Array.from({ length: 16 }, () => ({ pressed: false })) };
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { getGamepads: () => [pad] } });
+  try {
+    const rig = createRig();
+    rig.setAngles([0, 0, 0, JOINTS[3].min]);
+    const movement = new Movement(rig), actions = [];
+    const input = new GamepadInput({ onStatus: () => {}, onSelect: () => {}, onMove: angles => movement.setTarget(angles), onOrbit: () => {}, onAction: action => actions.push(action) });
+    for (let frame = 0; frame < 24; frame++) { input.tick(1 / 60, rig.getAngles(), 3); movement.tick(1 / 60); }
+    assert.ok(Math.abs(rig.getAngles()[3]) < 1e-8);
+    pad.buttons[0].pressed = true;
+    input.tick(1 / 60, rig.getAngles(), 3);
+    assert.deepEqual(actions, ['align']);
   } finally { Object.defineProperty(globalThis, 'navigator', original); }
 });

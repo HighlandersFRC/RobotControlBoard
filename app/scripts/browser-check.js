@@ -17,11 +17,12 @@ async page => {
   await angle('Shoulder', -45);
   await angle('Elbow', 60);
   await angle('Turntable', 30);
-  await angle('Wrist', 25);
+  await angle('Claw', 25);
   await page.getByRole('button', { name: 'Fit view', exact: true }).click();
   check(await page.getByRole('slider', { name: 'Shoulder position' }).inputValue() === '-45', 'Angle fields must update the rig and sliders.');
   await page.screenshot({ path: 'output/playwright/desktop.png' });
 
+  await page.locator('#start-control').click();
   await page.getByRole('button', { name: 'Record', exact: true }).click();
   await angle('Shoulder', -20);
   await page.waitForTimeout(250);
@@ -32,6 +33,7 @@ async page => {
   check(saved[0].keyframes[0].time === 0 && saved[0].duration > 0, 'Recording must include its initial pose and duration.');
   await page.reload();
   await page.locator('#viewport[data-ready="true"]').waitFor();
+  await page.locator('#start-control').click();
   check(await page.getByRole('button', { name: 'Play', exact: true }).isEnabled(), 'Recording must survive a reload.');
   await page.getByText('Recording options', { exact: true }).click();
   await page.getByRole('checkbox', { name: 'Loop', exact: true }).uncheck();
@@ -53,7 +55,8 @@ async page => {
     await button.click();
     check(await button.getAttribute('aria-pressed') === 'true', `${view} camera must become active.`);
   }
-  await page.locator('#home-arm').click();
+  await page.locator('#align-model').click();
+  await angle('Shoulder', 0);
   await page.locator('#arm-canvas').focus();
   await page.keyboard.press('2');
   await page.keyboard.press('ArrowLeft');
@@ -99,6 +102,7 @@ async page => {
   });
   await cameraPage.goto(origin);
   await cameraPage.locator('#viewport[data-ready="true"]').waitFor();
+  if (await cameraPage.locator('#start-control').isVisible()) await cameraPage.locator('#start-control').click();
   await cameraPage.getByRole('button', { name: 'Enable camera', exact: true }).click();
   await cameraPage.getByRole('button', { name: 'Disable camera', exact: true }).waitFor();
   check(await cameraPage.getByRole('checkbox', { name: 'Move arm with hand' }).isChecked(), 'Enabling camera must activate hand control.');
@@ -112,6 +116,7 @@ async page => {
     window.testCamera.createStream = navigator.mediaDevices.getUserMedia;
     navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('Denied', 'NotAllowedError'); };
   });
+  if (await cameraPage.locator('#start-control').isVisible()) await cameraPage.locator('#start-control').click();
   await cameraPage.getByRole('button', { name: 'Enable camera', exact: true }).click();
   await cameraPage.waitForFunction(() => document.getElementById('activity').textContent.includes('denied'));
   check(await cameraPage.getByRole('button', { name: 'Enable camera', exact: true }).isEnabled(), 'Camera denial must allow retry.');
@@ -119,6 +124,7 @@ async page => {
   await cameraPage.evaluate(() => {
     navigator.mediaDevices.getUserMedia = () => new Promise(resolve => { window.testCamera.finishPermission = resolve; });
   });
+  if (await cameraPage.locator('#start-control').isVisible()) await cameraPage.locator('#start-control').click();
   await cameraPage.getByRole('button', { name: 'Enable camera', exact: true }).click();
   await cameraPage.waitForFunction(() => !!window.testCamera.finishPermission);
   await cameraPage.locator('#stop-motion').click();

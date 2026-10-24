@@ -19,7 +19,7 @@ async page => {
   check(await page.getByRole('group', { name: 'Recording slot' }).isVisible(), 'Saved slots remain available.');
   await page.getByText('Recording options', { exact: true }).click();
   check(await page.locator('#viewport').getAttribute('data-grid-spacing') === '4', 'Grid cells must be four times wider.');
-  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Wrist', 30]]) {
+  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Claw', 30]]) {
     await page.getByRole('spinbutton', { name: `${name} angle` }).fill(String(value));
     await page.getByRole('spinbutton', { name: `${name} angle` }).press('Tab');
   }
@@ -36,7 +36,7 @@ async page => {
   check(!await page.locator('#joint-sidebar').isVisible(), 'Arm controls can be collapsed independently.');
   await page.locator('#toggle-inputs').click();
   check(!await page.locator('#input-sidebar').isVisible(), 'Both sidebars can be collapsed.');
-  check(await page.locator('#stop-motion').isVisible() && await page.locator('#home-arm').isVisible(), 'Home and Stop stay available.');
+  check(await page.locator('#stop-motion').isVisible() && await page.locator('#start-control').isVisible(), 'Start control and Stop stay available.');
   await page.reload();
   await page.locator('#viewport[data-ready="true"]').waitFor();
   check(!await page.locator('#joint-sidebar').isVisible(), 'Panel preference survives reload.');

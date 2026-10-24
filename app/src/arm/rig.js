@@ -5,7 +5,7 @@ export const JOINTS = [
   { name: 'Turntable', axis: 'y', min: radians(-180), max: radians(180) },
   { name: 'Shoulder', axis: 'z', min: radians(-90), max: radians(60) },
   { name: 'Elbow', axis: 'z', min: radians(-90), max: radians(90) },
-  { name: 'Wrist', axis: 'y', min: radians(-60), max: radians(60) },
+  { name: 'Claw', axis: 'y', min: radians(-60), max: radians(60) },
 ];
 
 // CAD exports use metres, Z up, and a shared assembly origin at the base top.

@@ -57,7 +57,7 @@ async page => {
     if (width === 390) await page.screenshot({ path: 'output/playwright/liquid-glass-mobile.png', fullPage: true });
   }
   if (await page.locator('#toggle-joints').getAttribute('aria-expanded') === 'false') await page.locator('#toggle-joints').click();
-  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Wrist', 30]]) {
+  for (const [name, value] of [['Shoulder', -40], ['Elbow', 55], ['Turntable', 25], ['Claw', 30]]) {
     const input = page.getByRole('spinbutton', { name: `${name} angle`, exact: true });
     await input.fill(String(value));
     await input.press('Tab');

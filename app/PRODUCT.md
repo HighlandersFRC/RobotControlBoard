@@ -21,7 +21,7 @@ The existing browser application supports direct model dragging, sliders, keyboa
 ## Capabilities and Constraints
 
 - Preserve the supplied CAD assembly, bearing alignment, joint limits, and recording format.
-- Keep Stop and Home available while users hide or show the control panels.
+- Keep Stop and Start control / Align model available while users hide or show the control panels.
 - Fullscreen must also work in embedded browsers through a page-filling fallback.
 - Camera and serial access require the browser's normal device permissions.
 - The position-only Arduino protocol does not provide a hardware emergency stop.

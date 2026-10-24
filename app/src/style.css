@@ -12,7 +12,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
 ::selection { color: #fff; background: #466382; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 input { caret-color: var(--blue); }
-#app { height: 100dvh; min-height: 420px; display: grid; grid-template-rows: minmax(0, 1fr) 28px; }
+#app { height: 100dvh; min-height: 420px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 28px; }
 .workspace { --left-panel: 284px; --right-panel: 260px; --left-inset: 316px; --right-inset: 292px; position: relative; min-height: 0; }
 .workspace.joints-closed { --left-inset: 0px; }
 .workspace.inputs-closed { --right-inset: 0px; }
@@ -28,6 +28,7 @@ input { caret-color: var(--blue); }
 .panel-toggle { min-height: 36px; }
 .panel-toggle svg { width: 17px; height: 17px; }
 .arm-actions { display: flex; gap: 6px; }
+.arm-actions .button.primary { background: var(--primary); }
 .joint-sidebar, .input-sidebar { position: absolute; z-index: 5; top: 68px; bottom: 16px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #62738766 transparent; }
 .joint-sidebar { left: 16px; width: var(--left-panel); }
 .input-sidebar { right: 16px; width: var(--right-panel); }
@@ -79,6 +80,8 @@ h1, h2 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.2px; }
   #app { min-height: 420px; grid-template-rows: minmax(0, 1fr) 26px; }
   .viewport { --scene-left: 0px; --scene-right: 0px; }
   .scene-rail { top: 10px; left: 10px; right: 10px; }
+  .scene-rail .panel-toggle span { display: none; }
+  .scene-rail .panel-toggle { width: 36px; padding-inline: 8px; }
   .joint-sidebar, .input-sidebar { top: 60px; bottom: 8px; max-width: calc(100% - 20px); }
   .joint-sidebar { left: 10px; }
   .input-sidebar { right: 10px; }
