@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRig, JOINTS } from '../src/arm/rig.js';
 import { Movement, JOINT_SPEEDS } from '../src/movement.js';
 
-test('all inputs use faster turntable/elbow speeds and ramp the shoulder up to 8 degrees/sec', () => {
+test('all inputs keep their joint speeds and ramp the shoulder up to 40 degrees/sec', () => {
   for (const source of ['manual', 'gamepad', 'hand', 'sequence']) {
     const rig = createRig(), movement = new Movement(rig);
     for (let frame = 0; frame < 60; frame++) {
@@ -13,7 +13,7 @@ test('all inputs use faster turntable/elbow speeds and ramp the shoulder up to 8
       rig.getAngles().forEach((angle, index) => assert.ok(angle - before[index] <= JOINT_SPEEDS[index] / 60 + 1e-9));
     }
     const degrees = rig.getAngles().map(angle => angle * 180 / Math.PI);
-    const expected = [75, 8 - 8 ** 2 / (2 * 30), 75, 60];
+    const expected = [75, 40 - 40 ** 2 / (2 * 150), 75, 60];
     degrees.forEach((angle, index) => assert.ok(Math.abs(angle - expected[index]) < 1e-8));
   }
 });
@@ -66,19 +66,19 @@ test('Stop drops a pending destination, invalid targets are rejected, and small 
 test('shoulder accelerates gently, cruises faster, and eases into its target', () => {
   const rig = createRig(), movement = new Movement(rig);
   const toDegrees = angle => angle * 180 / Math.PI;
-  movement.setTarget([0, Math.PI / 18, 0, 0]);
+  movement.setTarget([0, Math.PI / 3, 0, 0]);
   const speeds = [];
   for (let frame = 0; frame < 300; frame++) {
     const before = rig.getAngles()[1];
     movement.tick(1 / 120);
     const after = rig.getAngles()[1];
     speeds.push(toDegrees(after - before) * 120);
-    assert.ok(after >= before - 1e-9 && after <= Math.PI / 18 + 1e-9);
+    assert.ok(after >= before - 1e-9 && after <= Math.PI / 3 + 1e-9);
   }
-  assert.ok(speeds[0] > 0 && speeds[0] < .2);
-  assert.ok(Math.max(...speeds) > 7.9 && Math.max(...speeds) <= 8 + 1e-8);
+  assert.ok(speeds[0] > 0 && speeds[0] < 1);
+  assert.ok(Math.max(...speeds) > 39.9 && Math.max(...speeds) <= 40 + 1e-8);
   assert.ok(speeds.some((speed, frame) => frame > 120 && speed > 0 && speed < 2));
-  assert.ok(Math.abs(toDegrees(rig.getAngles()[1]) - 10) < 1e-8);
+  assert.ok(Math.abs(toDegrees(rig.getAngles()[1]) - 60) < 1e-8);
 });
 
 test('shoulder reversal stays within joint limits and Stop cancels its ramp immediately', () => {

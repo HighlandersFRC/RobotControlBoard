@@ -136,9 +136,10 @@ test('shoulder output continues beyond both 20-degree boundaries to the full end
     assert.ok(values.includes(endpoint < 0 ? 95 : 85), 'Commands continue beyond the reported ±20° boundary.');
     for (let i = 1; i < values.length; i++) {
       assert.equal(values[i] - values[i - 1], direction, 'Every completed shoulder command moves one degree in the corrected direction.');
-      assert.ok(f.writes[i].time - f.writes[i - 1].time >= 562.5);
+      assert.ok(f.writes[i].time - f.writes[i - 1].time >= 112.5);
     }
     assert.deepEqual(f.errors, []);
+    assert.ok(f.writes.at(-1).time <= 3500, 'The USB shoulder target reaches either endpoint from center within 3.5 seconds.');
   }
 });
 
@@ -173,7 +174,7 @@ test('Stop during an asynchronous serial connection remains in effect after open
   assert.deepEqual(errors, []);
 });
 
-test('a six-second USB stall cannot skip the shoulder from 90 to 80', async t => {
+test('a six-second USB stall cannot skip the shoulder from 90 to 77', async t => {
   let release;
   const f = await serialFixture({ write: (_, count) => count === 1 ? new Promise(resolve => { release = resolve; }) : undefined });
   t.after(() => f.connection.disconnect());
@@ -185,7 +186,7 @@ test('a six-second USB stall cannot skip the shoulder from 90 to 80', async t =>
     f.time(frame * 1000 / 60);
     f.connection.tick(frame * 1000 / 60);
   }
-  assert.equal(Number(encodeAngles(rig.getAngles()).match(/S1:(\d+)/)[1]), 80);
+  assert.equal(Number(encodeAngles(rig.getAngles()).match(/S1:(\d+)/)[1]), 77);
   f.time(6000);
   release();
   await f.connection.writing;
